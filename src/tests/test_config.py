@@ -37,11 +37,11 @@ def test_config(config, logger):
                 param=MODEL_TXT.model_type) + f' It should be one of these: [yolov5s]'
         },
         {
-            'name': f'test {MODEL_TXT.score_thresholds}',
-            'result': all(thres >= 0 for thres in config.score_thresholds),
+            'name': f'test {MODEL_TXT.score_threshold}',
+            'result': config.score_threshold >= 0,
             'expected': True,
             'error_message': shared_incorrect_para_msg.format(
-                param=MODEL_TXT.score_thresholds) + ' All thresholds should be >= 0'
+                param=MODEL_TXT.score_threshold) + ' Threshold should be >= 0'
         },
     ]
     ok = test_loop(test_cases=tests, test_name='validate input config', logger=logger)

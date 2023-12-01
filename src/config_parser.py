@@ -7,10 +7,9 @@ import torch
 from const.config_const import FREQUENCY_TXT, GENERAL_TXT, MODEL_TXT
 from const.constants import shared_exit_msg
 from tests.test_config import test_config
-from utility.format_utils import (str_to_list_float, str_to_list_int,
-                                  str_to_list_str)
+from utility.format_utils import str_to_list_int, str_to_list_str
 from utility.mylogger import MyLogger
-from utility.path_utils import read_dict_from_json
+from utility.path_utils import get_last_path_element, read_dict_from_json
 
 
 class config:
@@ -28,7 +27,7 @@ class config:
 
     # model
     model_type = ""
-    score_thresholds = []
+    score_threshold = []
 
     output_dir = ""
 
@@ -60,11 +59,10 @@ def analyze_config(config_path):
 
     # model
     config.model_type = config_parser[MODEL_TXT.MODEL][MODEL_TXT.model_type]
-    config.score_thresholds = str_to_list_float(config_parser[MODEL_TXT.MODEL][MODEL_TXT.score_thresholds])
+    config.score_threshold = float(config_parser[MODEL_TXT.MODEL][MODEL_TXT.score_threshold])
 
     # output
-    folders = os.path.normpath(config.input_dir).split(os.sep)
-    last_folder = folders[-1] # Get the last folder
+    last_folder = get_last_path_element(config.input_dir)
     config.output_dir = os.path.join("output", last_folder)
 
 

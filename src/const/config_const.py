@@ -19,4 +19,4 @@ class MODEL_TXT:
     MODEL = "MODEL"
 
     model_type = "model_type"
-    score_thresholds = "score_thresholds"
+    score_threshold = "score_threshold"
