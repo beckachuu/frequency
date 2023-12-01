@@ -1,0 +1,11 @@
+colorlog
+h5py
+mapcalc
+matplotlib
+numpy
+scikit-image
+torch
+torchmetrics
+torchvision
+ultralytics
+yolov5
