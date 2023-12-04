@@ -25,7 +25,7 @@ def load_model():
     return detector
 
 
-def save_results(detector, classes, filepaths, save_dir, save_demo=True):
+def save_results(detector, coco_91_classes, filepaths, save_dir, save_demo=True):
     detect_results = detector(filepaths)
     
     # Save demo detected
@@ -33,13 +33,13 @@ def save_results(detector, classes, filepaths, save_dir, save_demo=True):
         detect_results.save(labels=True, save_dir=save_dir, exist_ok=True)
 
     # Save bounding boxes
-    for i, xywh in enumerate(detect_results.xywh):
-        xywh = xywh.numpy()
+    for i, xyxy in enumerate(detect_results.xyxy):
+        xyxy = xyxy.numpy()
         filename = get_last_path_element(filepaths[i]).split('.')[0]
 
         with open(os.path.join(save_dir, f"{filename}.txt"), "w+") as f:
-            for box in xywh:
-                box[5] = classes[int(box[5])] # Map COCO 80 classes to COCO 90 classes
+            for box in xyxy:
+                box[5] = coco_91_classes[int(box[5])] # Map COCO 80 classes to COCO 90 classes
                 f.write(' '.join(map(str, box)) + '\n')
 
 
@@ -62,14 +62,9 @@ if __name__ == "__main__":
     analyze_config(os.path.abspath('./config.ini'))
     
     detector = load_model()
-    classes = coco80_to_coco91_class()
+    coco_90_classes = coco80_to_coco91_class()
 
-    detect(detector, classes, config.input_dir, config.output_dir)
+    detect(detector, coco_90_classes, config.input_dir, config.output_dir)
     for r in config.r_values:
-        for low in [True, False]:
-            if low:
-                save_dir = get_r_low_dir(r)
-            else:
-                save_dir = get_r_high_dir(r)
-
-        detect(detector, classes, save_dir)
+        for save_dir in [get_r_low_dir(r), get_r_high_dir(r)]:
+            detect(detector, coco_90_classes, save_dir)
