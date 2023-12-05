@@ -1,5 +1,7 @@
 import os
 import sys
+from logging import Logger
+from pathlib import Path
 
 import torch
 from torch.utils.data import DataLoader
@@ -12,6 +14,7 @@ if module_path not in sys.path:
 
 from config_parser import analyze_config, config, get_r_high_dir, get_r_low_dir
 from dataset import PathDataset
+from utility.mylogger import MyLogger
 from utility.path_utils import get_last_path_element
 
 
@@ -37,20 +40,27 @@ def save_results(detector, coco_91_classes, filepaths, save_dir, save_demo=True)
         xyxy = xyxy.numpy()
         filename = get_last_path_element(filepaths[i]).split('.')[0]
 
-        with open(os.path.join(save_dir, f"{filename}.txt"), "w+") as f:
+        with open(Path(save_dir) / f"{filename}.txt", "w+") as f:
             for box in xyxy:
                 box[5] = coco_91_classes[int(box[5])] # Map COCO 80 classes to COCO 90 classes
                 f.write(' '.join(map(str, box)) + '\n')
 
 
 
-def detect(detector, classes, input_path, output_path=None):
+def detect(logger: Logger, detector, classes, input_path, output_path=None):
     if not output_path:
         output_path = input_path
+
+    # TODO: don't re-detect existed (log something out too)
     
     dataset = PathDataset(input_path, config.image_extensions)
-    dataloader = DataLoader(dataset=dataset, num_workers=2, batch_size=config.batch_size, shuffle=True)
-    detect_dir = os.path.join(output_path, 'detects')
+    try:
+        dataloader = DataLoader(dataset=dataset, num_workers=2, batch_size=config.batch_size, shuffle=True)
+    except ValueError:
+        logger.error(f'Input path "{input_path}" does not contain any image with allowed extension.')
+        sys.exit()
+
+    detect_dir = Path(output_path) / 'detects'
 
     for i, images_paths in enumerate(dataloader):
         save_demo = i < config.demo_count
@@ -60,11 +70,12 @@ def detect(detector, classes, input_path, output_path=None):
 
 if __name__ == "__main__":
     analyze_config(os.path.abspath('./config.ini'))
+    logger = MyLogger.getLog()
     
     detector = load_model()
     coco_90_classes = coco80_to_coco91_class()
 
-    detect(detector, coco_90_classes, config.input_dir, config.output_dir)
+    detect(logger, detector, coco_90_classes, config.input_dir, config.output_dir)
     for r in config.r_values:
         for save_dir in [get_r_low_dir(r), get_r_high_dir(r)]:
-            detect(detector, coco_90_classes, save_dir)
+            detect(logger, detector, coco_90_classes, save_dir)
