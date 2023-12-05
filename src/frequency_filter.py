@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -68,8 +69,8 @@ class FrequencyFilter():
         self.images_freq_low.append(image_low)
         self.images_freq_high.append(image_high)
 
-        low_path = os.path.join(self.low_save_dir, image_name)
-        high_path = os.path.join(self.high_save_dir, image_name)
+        low_path = Path(self.low_save_dir) / image_name
+        high_path = Path(self.high_save_dir) / image_name
         self.low_paths.append(low_path)
         self.high_paths.append(high_path)
 

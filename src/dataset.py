@@ -1,5 +1,5 @@
 import glob
-import os
+from pathlib import Path
 
 import cv2
 import h5py
@@ -44,7 +44,7 @@ class PathDataset(udata.Dataset):
 def prepare_h5py_data(data_path, rain_path, path, val_split=0.15):
     print("Processing data")
 
-    save_path = os.path.join(data_path + "data.h5")
+    save_path = Path(data_path) / "data.h5"
     h5f = h5py.File(save_path, "w")
 
     paths = glob.glob(path + "/*.png")

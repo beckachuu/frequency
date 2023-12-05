@@ -1,6 +1,7 @@
 import configparser
 import os
 import sys
+from pathlib import Path
 
 import torch
 
@@ -9,7 +10,7 @@ from const.constants import shared_exit_msg
 from tests.test_config import test_config
 from utility.format_utils import str_to_list_int, str_to_list_str
 from utility.mylogger import MyLogger
-from utility.path_utils import get_last_path_element, read_dict_from_json
+from utility.path_utils import get_last_path_element
 
 
 class config:
@@ -19,7 +20,6 @@ class config:
     batch_size = -1
     demo_count = -1
     groundtruth_json = ""
-    groundtruth_data = None
     device = None
 
     # frequency
@@ -63,7 +63,7 @@ def analyze_config(config_path):
 
     # output
     last_folder = get_last_path_element(config.input_dir)
-    config.output_dir = os.path.join("output", last_folder)
+    config.output_dir = Path("output") / last_folder
 
 
     ok = test_config(config, logger)
@@ -74,13 +74,13 @@ def analyze_config(config_path):
 
 
 def get_r_low_dir(r: int):
-    low_dir = os.path.join(config.output_dir, f"low_{r}")
+    low_dir = Path(config.output_dir, f"low_{r}")
     if not os.path.exists(low_dir):
         os.makedirs(low_dir)
     return low_dir
 
 def get_r_high_dir(r: int):
-    high_dir = os.path.join(config.output_dir, f"high_{r}")
+    high_dir = Path(config.output_dir, f"high_{r}")
     if not os.path.exists(high_dir):
         os.makedirs(high_dir)
     return high_dir
