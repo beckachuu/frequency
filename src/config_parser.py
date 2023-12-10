@@ -10,7 +10,7 @@ from const.constants import shared_exit_msg
 from tests.test_config import test_config
 from utility.format_utils import str_to_list_int, str_to_list_str
 from utility.mylogger import MyLogger
-from utility.path_utils import get_last_path_element
+from utility.path_utils import create_path_if_not_exists, get_last_path_element
 
 
 class config:
@@ -75,12 +75,10 @@ def analyze_config(config_path):
 
 def get_r_low_dir(r: int):
     low_dir = Path(config.output_dir, f"low_{r}")
-    if not os.path.exists(low_dir):
-        os.makedirs(low_dir)
+    create_path_if_not_exists(low_dir)
     return low_dir
 
 def get_r_high_dir(r: int):
     high_dir = Path(config.output_dir, f"high_{r}")
-    if not os.path.exists(high_dir):
-        os.makedirs(high_dir)
+    create_path_if_not_exists(high_dir)
     return high_dir

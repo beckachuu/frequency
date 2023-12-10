@@ -16,21 +16,9 @@ def get_timestamp(timestamp_format="%d%m%y-%H%M%S"):
     return datetime.now().strftime(timestamp_format)
 
 
-def check_path_exists(path):
-    return os.path.exists(path)
-
-
-def mkdir(path):
-    if not check_path_exists(path):
+def create_path_if_not_exists(path):
+    if not os.path.exists(path):
         os.makedirs(path)
-
-
-def mkdirs(paths):
-    if isinstance(paths, str):
-        mkdir(paths)
-    else:
-        for path in paths:
-            mkdir(path)
 
 
 def clear_dir(dir_path):
@@ -70,8 +58,7 @@ def img_is_color(img):
 
 
 def save_image_to_folder(folder_path, image, prefix_file_name='', extension='png'):
-    if not check_path_exists(folder_path):
-        mkdir(folder_path)
+    create_path_if_not_exists(folder_path)
 
     # images = np.clip(images, a_min=0, a_max=1)
 
