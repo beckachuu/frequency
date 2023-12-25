@@ -7,6 +7,7 @@ class GENERAL_TXT:
     batch_size = "batch_size"
     demo_count = "demo_count"
     groundtruth_json = "groundtruth_json"
+    force_detect = "force_detect"
 
 
 class FREQUENCY_TXT:

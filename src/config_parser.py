@@ -21,6 +21,7 @@ class config:
     demo_count = -1
     groundtruth_json = ""
     device = None
+    force_detect = False
 
     # frequency
     r_values = []
@@ -53,6 +54,8 @@ def analyze_config(config_path):
     # config.groundtruth_data = read_dict_from_json(config.groundtruth_json)
 
     config.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    config.force_detect = bool(config_parser[GENERAL_TXT.GENERAL][GENERAL_TXT.force_detect])
     
     # frequency
     config.r_values = str_to_list_int(config_parser[FREQUENCY_TXT.FREQUENCY][FREQUENCY_TXT.r_values])

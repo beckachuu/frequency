@@ -134,3 +134,5 @@ coco_91_classes= {
     90: 'toothbrush',
     91: 'hairbrush'
 }
+
+epsilon = 1e-7  # small constant

@@ -4,9 +4,6 @@ import os
 import sys
 from datetime import datetime
 
-import torch
-import torchvision
-
 
 def get_project_root():
     return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -57,16 +54,6 @@ def img_is_color(img):
     return False
 
 
-def save_image_to_folder(folder_path, image, prefix_file_name='', extension='png'):
-    create_path_if_not_exists(folder_path)
-
-    # images = np.clip(images, a_min=0, a_max=1)
-
-    file_name = prefix_file_name + '.' + extension
-    file_path = os.path.join(folder_path, file_name)
-    torchvision.utils.save_image(torch.Tensor(image.transpose((2, 0, 1))), file_path)
-
-
 def read_txt_from_file(path_to_file):
     with open(path_to_file) as f:
         contents = f.read()
@@ -90,8 +77,27 @@ def get_filepaths_list(folder_path: str, extensions: list) -> list:
     filepaths = []
     for ext in extensions:
         filepaths += glob.glob(os.path.join(folder_path, f"*.{ext}"))
+    filepaths.sort()
     return filepaths
+
+def count_filepaths(folder_path: str, extensions: list) -> list:
+    filepaths = []
+    for ext in extensions:
+        filepaths += glob.glob(os.path.join(folder_path, f"*.{ext}"))
+    return len(filepaths)
+
 
 def get_last_path_element(path: str) -> str:
     elements = os.path.normpath(path).split(os.sep)
     return elements[-1]
+
+
+def get_child_folders(path, level=1):
+    if level == 1:
+        return [os.path.join(path, name) for name in os.listdir(path) if os.path.isdir(os.path.join(path, name))]
+    else:
+        folders = []
+        for name in os.listdir(path):
+            if os.path.isdir(os.path.join(path, name)):
+                folders.extend(get_child_folders(os.path.join(path, name), level - 1))
+        return folders
