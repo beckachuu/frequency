@@ -1,18 +1,11 @@
 
-from const.config_const import FREQUENCY_TXT, GENERAL_TXT, MODEL_TXT
+from const.config_const import *
 from const.constants import shared_incorrect_para_msg
 from tests.run_testcase import test_loop
 
 
 def test_config(config, logger):
     tests = [
-        {
-            'name': f'test {GENERAL_TXT.demo_count}',
-            'result': int(config.demo_count) >= 0,
-            'expected': True,
-            'error_message': shared_incorrect_para_msg.format(
-                param=GENERAL_TXT.demo_count) + ' It should be >= 0'
-        },
         {
             'name': f'test {GENERAL_TXT.batch_size}',
             'result': int(config.batch_size) > 0,
@@ -22,11 +15,11 @@ def test_config(config, logger):
         },
 
         {
-            'name': f'test {FREQUENCY_TXT.r_values}',
-            'result': all(int(r) > 0 for r in config.r_values),
+            'name': f'test {ANALYZE_FREQ.r_values}',
+            'result': all(r >= 0 and r <= 452 for r in config.r_values),
             'expected': True,
             'error_message': shared_incorrect_para_msg.format(
-                param=FREQUENCY_TXT.r_values) + ' All r_values should be > 0'
+                param=ANALYZE_FREQ.r_values) + ' All r_values should be >= 0 and <= 452'
         },
 
         {

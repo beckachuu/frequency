@@ -50,22 +50,60 @@ pip install -r requirements.txt
 General input required arguments are in [config.ini](config.ini).
 
 
-## Run experiment
+## Run analysis and experiments
 
 ### Run
 
+#### Generate images
+
+- Run analyze: separate high and low frequency components of input images
 ```sh
-python main.py
+python analyze_freq.py
 ```
 
+- Run experiments: run a chosen experiment
+```sh
+python run_exp.py
+```
+
+#### Detect objects
+
+- Detect objects for experiment results
+```sh
+python detect.py
+```
+
+- Plot detected bboxes for experiment results
+```sh
+python plot_exp_demo.py
+```
+
+
+#### Evaluate
+
+- Evaluate mean Average Precision (mAP) for experiment results
+```sh
+python eval.py
+```
+
+#### Extra
+
+- Experiment with kernel: analyze magnitude and phase of different types of kernels in Fourier domain
+```sh
+python kernel_exp.py
+```
+
+
 ### View Result
-Images are saved in `\output\{Your input folder name}\{low or high frequency}_{r}\`:
-- To view detected images: open folder `\detects\` inside the above folder
+
+- `\output\{Your input folder name}\analyze\`: analyze results
+- `\output\{Your input folder name}\EXP_{#}\`: experiments results
+- Detected images: open folder `\detects\` inside each result folder
 
 
 ## References
 
-- The code obtaining low and high frequency component is proposed by Wang et al.
+- The code obtaining low and high frequency component is partially obtained from the repository of Wang et al.
 ```
 @article{Wang2019HighFrequencyCH,
   title={High-Frequency Component Helps Explain the Generalization of Convolutional Neural Networks},

@@ -41,7 +41,7 @@ def preprocess_image_from_url_to_1(img_path, resize_yolo=True):
     return image, height, width
 
 def preprocess_image_from_url_to_255HWC(img_path, resize_yolo=True):
-    image = cv2.imread(img_path)
+    image = cv2.imread(str(img_path))
     if len(image.shape) == 2:
         image = np.repeat(image[...,np.newaxis], 3, -1)
     height = image.shape[0]
@@ -107,7 +107,6 @@ def str_to_list_int(s: str) -> list:
     int_list = [int(s) for s in s_list]
     return int_list
 
-
 def str_to_list_float(s: str) -> list:
     '''
     s: string contain multiple elements, separated by comma (may include space)
@@ -117,4 +116,11 @@ def str_to_list_float(s: str) -> list:
     int_list = [float(s) for s in s_list]
     return int_list
 
+def str_to_list_num(s: str) -> list:
+    '''
+    s: string contain multiple elements, separated by comma (may include space)
+    '''
+    if s.find('.') != -1:
+        return str_to_list_float(s)
+    return str_to_list_int(s)
 

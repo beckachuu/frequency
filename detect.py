@@ -12,11 +12,11 @@ module_path = os.path.abspath(os.getcwd() + "/src")
 if module_path not in sys.path:
     sys.path.append(module_path)
 
-from config_parser import analyze_config, config, get_r_low_dir
+from config_parser import analyze_config, config
 from dataset import PathDataset
 from utility.mylogger import MyLogger
 from utility.path_utils import (count_filepaths, create_path_if_not_exists,
-                                get_last_path_element, get_child_folders)
+                                get_exp_folders, get_last_path_element)
 
 
 def load_model():
@@ -48,22 +48,25 @@ def detect(logger: Logger, detector, classes, input_path, output_path=None):
     if not output_path:
         output_path = input_path
     detect_dir = Path(output_path) / 'detects'
-    create_path_if_not_exists(detect_dir)
 
     dataset = PathDataset(input_path, config.image_extensions)
+
+    if len(dataset) == 0:
+        logger.warning(f"Skipping {input_path}: no image found in this directory")
+        return
 
     if not config.force_detect and count_filepaths(detect_dir, ['txt']) == len(dataset):
         logger.info(f"Skipping {input_path}: force_detect option is False and this path got enough detect result files")
         return
     
+    create_path_if_not_exists(detect_dir)
 
-    logger.info(f"Detecting path {input_path}")
-
+    logger.info(f"Detecting: {input_path}")
     try:
         dataloader = DataLoader(dataset=dataset, batch_size=config.batch_size)
     except ValueError:
         logger.error(f'Input path "{input_path}" does not contain any image with allowed extension.')
-        sys.exit()
+        return
 
     for i, images_paths in enumerate(dataloader):
         save_results(detector, classes, images_paths, detect_dir)
@@ -80,18 +83,12 @@ if __name__ == "__main__":
     # detect input images
     detect(logger, detector, coco_91, config.input_dir, config.output_dir)
 
-    # detect low frequency images
-    for r in config.r_values:
-        low_dir = get_r_low_dir(r)
-        detect(logger, detector, coco_91, low_dir)
+    # detect analyze low frequency images
+    # for r in config.r_values:
+    #     low_dir = get_r_low_dir(r)
+    #     detect(logger, detector, coco_91, low_dir)
 
-    # detect analyze images (check all folders in the analyze path)
-    analyze_dir = Path(config.output_dir, "analyze")
-    if os.path.exists(analyze_dir):
-        all_folder = get_child_folders(analyze_dir)
-        if len(all_folder) == 0:
-            all_folder = [analyze_dir]
-        for folder in all_folder:
-            detect(logger, detector, coco_91, folder)
-    else:
-        logger.warning("Analyze path does not exist")
+    # detect experiments images
+    exp_folders = get_exp_folders(config.exp_dir)
+    for folder in exp_folders:
+        detect(logger, detector, coco_91, folder)

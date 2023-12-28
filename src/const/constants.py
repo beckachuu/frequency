@@ -38,7 +38,7 @@ RGB_CHANNELS_NAMES = ['red', 'green', 'blue']
 
 # default error message
 shared_exit_msg = 'Please check out configuration!'
-shared_incorrect_para_msg = '{param} is not correct.'
+shared_incorrect_para_msg = '{param} is invalid.'
 
 
 coco_91_classes= {

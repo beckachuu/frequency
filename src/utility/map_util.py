@@ -4,6 +4,9 @@ Adapted from https://github.com/Cartucho/mAP
 
 import numpy as np
 
+from const.constants import coco_91_classes
+from utility.path_utils import get_filepaths_list, get_last_path_element
+
 
 class _ImageDetection:
     def __init__(self, score, label, boxes, used=False):
@@ -153,13 +156,21 @@ def load_gt_data(groundtruth: dict, image_id: int):
 
     return gt_data
 
+def get_gt_bbox(groundtruth: dict, image_id: int):
+    gt_data = []
+    
+    for gt_dict in groundtruth:
+        if gt_dict["image_id"] == image_id:
+            bbox = gt_dict["bbox"].copy()
+            bbox[2] += bbox[0]
+            bbox[3] += bbox[1]
+            gt_data.append(bbox)
+            gt_data[-1].append(1)
+            gt_data[-1].append(int(gt_dict["category_id"]))
 
-def get_detect_list(detect_path):
-    with open(detect_path, 'r') as file:
-        detect_data = file.readlines()
-        detect_data = [line.rstrip('\n') for line in detect_data]
-        detect_data = [list(map(float, line.split())) for line in detect_data]
-    return detect_data
+    return np.array(gt_data)
+
+
 
 def load_detect_data(detect_list):
     if len(detect_list) == 0:
@@ -179,6 +190,13 @@ def load_detect_data(detect_list):
         'scores': detect_list[:, 4]
     }
     return detect_data
+
+def get_detect_bbox(detect_path):
+    with open(detect_path, 'r') as file:
+        detect_data = file.readlines()
+        detect_data = [line.rstrip('\n') for line in detect_data]
+        detect_data = [list(map(float, line.split())) for line in detect_data]
+    return np.array(detect_data)
 
 
 
@@ -302,3 +320,20 @@ def calculate_AP_for_class(tp, fp, gt_count):
     return average_precision
 
 
+def calculate_tp_fp_range_from_path(path, groundtruth, iou_list, classes = coco_91_classes):
+    tp = [[[] for _ in range(len(iou_list))] for _ in range(len(classes))]
+    fp = [[[] for _ in range(len(iou_list))] for _ in range(len(classes))]
+
+    detect_files_paths = get_filepaths_list(path, ['txt'])
+    for file_path in detect_files_paths:
+        image_id = int(get_last_path_element(file_path).split('.')[0])
+        gt_data = load_gt_data(groundtruth, image_id)
+        detect_data = load_detect_data(get_detect_bbox(file_path))
+
+        # accumulate_tp_fp for each class
+        for class_ind in gt_data['labels']:
+            tp_range, fp_range = calculate_tp_fp_range_for_class(gt_data, detect_data, class_ind)
+            for i in range(len(iou_list)):
+                tp[class_ind-1][i] += tp_range[i]
+                fp[class_ind-1][i] += fp_range[i]
+    return tp, fp

@@ -87,9 +87,11 @@ def count_filepaths(folder_path: str, extensions: list) -> list:
     return len(filepaths)
 
 
-def get_last_path_element(path: str) -> str:
+def get_last_path_element(path: str, n = 1) -> list:
     elements = os.path.normpath(path).split(os.sep)
-    return elements[-1]
+    if n == 1:
+        return elements[-1]
+    return elements[-n:]
 
 
 def get_child_folders(path, level=1):
@@ -101,3 +103,14 @@ def get_child_folders(path, level=1):
             if os.path.isdir(os.path.join(path, name)):
                 folders.extend(get_child_folders(os.path.join(path, name), level - 1))
         return folders
+
+def get_exp_folders(exp_dir) -> list:
+    '''
+        Get result folders of an exp directory
+        Return 1st level child folders (or parent folder if no child found)
+    '''
+    exp_folders = get_child_folders(exp_dir, 1)
+    if len(exp_folders) == 0:
+        exp_folders = [exp_dir]
+
+    return exp_folders
