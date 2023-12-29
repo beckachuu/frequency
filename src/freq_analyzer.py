@@ -1,12 +1,12 @@
 from pathlib import Path
 
-import cv2
 import numpy as np
 from matplotlib import pyplot as plt
 
 from utility.format_utils import (complex_to_polar_real, log_normalize,
                                   resize_auto_interpolation,
                                   resize_auto_interpolation_same)
+from utility.mask_util import create_radial_mask
 from utility.mylogger import MyLogger
 from utility.path_utils import create_path_if_not_exists
 from utility.plot_util import plot_images
@@ -24,35 +24,15 @@ class FrequencyAnalyzer():
         self.high_plot_path = Path(high_save_dir) / 'fourier_plots'
         create_path_if_not_exists(self.low_plot_path)
         create_path_if_not_exists(self.high_plot_path)
-
-    def distance(self, i, j, imageSize):
-        dis = np.sqrt((i - imageSize/2) ** 2 + (j - imageSize/2) ** 2)
-        if dis < self.r:
-            return 1.0
-        else:
-            return 0
-
-    def create_radial_mask(self, img, radius=None):
-        if not radius:
-            radius = self.r
-
-        rows, cols = img.shape      
-    
-        center = (cols // 2, rows // 2)
-        mask = np.zeros((rows, cols))
-        cv2.circle(mask, center, radius, (1, 1, 1), thickness=-1)
-
-        # plt.imsave(Path(self.analyze_dir) / f'circle_mask_{exp_value}.png', circle_mask.astype(np.uint8))
-        return mask
     
 
-    def generateDataWithDifferentFrequencies(self, images, images_names, images_sizes) -> (list, list):
+    def analyze_frequency(self, images, images_names, images_sizes) -> (list, list):
         '''
         Image shape must be HWC.
         '''
         logger = MyLogger.getLog()
 
-        mask = self.create_radial_mask(np.zeros([images.shape[1], images.shape[2]]))
+        mask = create_radial_mask(np.zeros([images.shape[1], images.shape[2]]), self.r)
         for i in range(images.shape[0]):
             logger.info(f"Analyzing image: {images_names[i]}")
 

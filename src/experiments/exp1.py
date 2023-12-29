@@ -2,7 +2,6 @@ import os
 import sys
 from pathlib import Path
 
-import cv2
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -13,6 +12,7 @@ if module_path not in sys.path:
 
 from utility.format_utils import (complex_to_polar_real, polar_real_to_complex,
                                   resize_auto_interpolation)
+from utility.mask_util import create_radial_mask
 from utility.mylogger import MyLogger
 from utility.path_utils import create_path_if_not_exists
 
@@ -28,27 +28,6 @@ class FrequencyExp():
         self.both_path = ''
 
         self.exp_values = exp_values
-
-
-    def distance(self, i, j, imageSize):
-        dis = np.sqrt((i - imageSize/2) ** 2 + (j - imageSize/2) ** 2)
-        if dis < self.r:
-            return 1.0
-        else:
-            return 0
-
-    def create_radial_mask(self, img, radius=None):
-        if not radius:
-            radius = self.r
-
-        rows, cols = img.shape      
-    
-        center = (cols // 2, rows // 2)
-        mask = np.zeros((rows, cols))
-        cv2.circle(mask, center, radius, (1, 1, 1), thickness=-1)
-
-        # plt.imsave(Path(self.analyze_dir) / f'circle_mask_{exp_value}.png', circle_mask.astype(np.uint8))
-        return mask
     
 
     def run_experiment(self, images, images_names, images_sizes) -> (list, list):
@@ -57,7 +36,7 @@ class FrequencyExp():
         '''
         logger = MyLogger.getLog()
 
-        mask = self.create_radial_mask(np.zeros([images.shape[1], images.shape[2]]))
+        mask = create_radial_mask(np.zeros([images.shape[1], images.shape[2]]), self.r)
 
         for exp_value in self.exp_values:
 
