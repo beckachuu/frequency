@@ -23,7 +23,7 @@ def main():
         freq_analyzer = FrequencyAnalyzer(low_save_dir, high_save_dir, r)
     
         for i, (images, images_names, images_sizes) in enumerate(dataloader):
-            freq_analyzer.generateDataWithDifferentFrequencies(images, images_names, images_sizes)
+            freq_analyzer.analyze_frequency(images, images_names, images_sizes)
 
 
 if __name__ == "__main__":
