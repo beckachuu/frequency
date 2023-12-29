@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import cv2
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -31,12 +32,17 @@ class FrequencyAnalyzer():
         else:
             return 0
 
-    def mask_radial(self, img):
-        rows, cols = img.shape
+    def create_radial_mask(self, img, radius=None):
+        if not radius:
+            radius = self.r
+
+        rows, cols = img.shape      
+    
+        center = (cols // 2, rows // 2)
         mask = np.zeros((rows, cols))
-        for i in range(rows):
-            for j in range(cols):
-                mask[i, j] = self.distance(i, j, imageSize=rows)
+        cv2.circle(mask, center, radius, (1, 1, 1), thickness=-1)
+
+        # plt.imsave(Path(self.analyze_dir) / f'circle_mask_{exp_value}.png', circle_mask.astype(np.uint8))
         return mask
     
 
@@ -46,7 +52,7 @@ class FrequencyAnalyzer():
         '''
         logger = MyLogger.getLog()
 
-        mask = self.mask_radial(np.zeros([images.shape[1], images.shape[2]]))
+        mask = self.create_radial_mask(np.zeros([images.shape[1], images.shape[2]]))
         for i in range(images.shape[0]):
             logger.info(f"Analyzing image: {images_names[i]}")
 
