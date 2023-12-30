@@ -17,7 +17,6 @@ import random
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
-from sklearn.metrics import precision_recall_curve
 
 from const.constants import coco_91_classes
 
