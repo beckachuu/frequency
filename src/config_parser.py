@@ -27,7 +27,9 @@ class config:
 
     # experiments
     exp_number = 0
-    exp_values = []
+    exp_value_set = []
+    exp1_values = []
+    exp2_values = []
     force_detect = False
 
     # model
@@ -63,7 +65,9 @@ def analyze_config(config_path):
 
     # analyze frequency
     config.exp_number = int(config_parser[EXPERIMENTS.EXPERIMENTS][EXPERIMENTS.exp_number])
-    config.exp_values = str_to_list_num(config_parser[EXPERIMENTS.EXPERIMENTS][EXPERIMENTS.exp_values])
+    config.exp1_values = str_to_list_num(config_parser[EXPERIMENTS.EXPERIMENTS][EXPERIMENTS.exp1_values])
+    config.exp2_values = str_to_list_num(config_parser[EXPERIMENTS.EXPERIMENTS][EXPERIMENTS.exp2_values])
+    config.exp_value_set.extend([config.exp1_values, config.exp2_values])
     config.force_detect = bool(config_parser[EXPERIMENTS.EXPERIMENTS][EXPERIMENTS.force_detect])
 
     # model
