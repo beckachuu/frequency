@@ -1,6 +1,8 @@
 import cv2
 import numpy as np
 
+from const.constants import ALIAS_RING_WIDTH
+
 
 def create_radial_mask(img, radius):
     rows, cols = img.shape[:2]
@@ -55,6 +57,11 @@ def create_smooth_ring_mask(img: np.ndarray, inner_radius, outer_radius, blur_st
 
     height, width = img.shape[:2]
 
+    scale_up = max(1, int(ALIAS_RING_WIDTH / (outer_radius - inner_radius)))
+    blur_strength = blur_strength * scale_up
+    if blur_strength % 2 == 0:
+        blur_strength += 1
+
     mask_height = max(outer_radius*2, height)
     mask_width = max(outer_radius*2, width)
     center_x = mask_height // 2
@@ -63,13 +70,14 @@ def create_smooth_ring_mask(img: np.ndarray, inner_radius, outer_radius, blur_st
     border_x = int(abs(mask_width - width) / 2)
     border_y = int(abs(mask_height - height) / 2)
 
-    # Create a linear gradient in the radial direction
-    y, x = np.ogrid[-center_y:center_y, -center_x:center_x]
+    # Create a radial gradient mask twice as large -> avoid aliasing artifact
+    y, x = np.ogrid[-center_y*scale_up:center_y*scale_up, -center_x*scale_up:center_x*scale_up]
     gradient = np.sqrt(x*x + y*y)
 
-    # Enhance the pixel intensity at the middle of the ring width
-    ring_mask = np.where((gradient >= inner_radius) & (gradient <= outer_radius), gradient, 0)
+    ring_mask = np.where((gradient > inner_radius*scale_up) & (gradient < outer_radius*scale_up), gradient, 0)
+
     smooth_ring = cv2.GaussianBlur(ring_mask, (blur_strength, blur_strength), 0, borderType=cv2.BORDER_CONSTANT)
+    smooth_ring = cv2.resize(smooth_ring, (width, height), interpolation=cv2.INTER_AREA)
     smooth_ring = smooth_ring[border_y:border_y+height, border_x:border_x+width]
     smooth_ring = smooth_ring / np.max(smooth_ring) * max_intensity
     
