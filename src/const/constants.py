@@ -136,3 +136,5 @@ coco_91_classes= {
 }
 
 epsilon = 1e-7  # small constant
+
+PLOT_FONT_SCALE = 40
