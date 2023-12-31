@@ -18,7 +18,7 @@ def resize_auto_interpolation(image: np.ndarray, height=yolov5_input_size, width
     height = int(height)
     width = int(width)
 
-    if image.shape[0] * image.shape[1] < yolov5_input_size * yolov5_input_size:
+    if image.shape[0] * image.shape[1] < height * width:
         image = cv2.resize(image, (width, height), interpolation=cv2.INTER_CUBIC)
     else:
         image = cv2.resize(image, (width, height), interpolation=cv2.INTER_AREA)

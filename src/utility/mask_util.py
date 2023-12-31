@@ -5,10 +5,13 @@ from const.constants import ALIAS_RING_WIDTH
 
 
 def create_radial_mask(img, radius):
-    rows, cols = img.shape[:2]
+    if radius < 0:
+        raise ValueError("Radius must be non-negative.")
+    
+    height, width = img.shape[:2]
 
-    center = (cols // 2, rows // 2)
-    mask = np.zeros((rows, cols))
+    center = (width // 2, height // 2)
+    mask = np.zeros((height, width))
     cv2.circle(mask, center, radius, (1, 1, 1), thickness=-1)
 
     # plt.imsave(Path(self.analyze_dir) / f'circle_mask_{exp_value}.png', circle_mask.astype(np.uint8))
