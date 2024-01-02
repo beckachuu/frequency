@@ -28,7 +28,7 @@ def create_Hann_mask(img: np.ndarray, center_intensity: int = 0):
     """
 
     if center_intensity <= 0:
-        raise ValueError("center_intensity must be positive.")
+        return(np.ones(img.shape[:2]))
 
     height, width = img.shape[:2]
 

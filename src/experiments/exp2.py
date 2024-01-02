@@ -126,19 +126,21 @@ class FrequencyExp():
         image_exp = np.array(image)
 
         for channel in range(3):
-            windowed_image = image[:, :, channel] * hann_mask
-            fourier_domain = np.fft.fftshift(np.fft.fft2(windowed_image))
-
+            fourier_domain = np.fft.fftshift(np.fft.fft2(image[:, :, channel]))
             magnitude, phase = complex_to_polar_real(fourier_domain)
 
-            # np.copyto(magnitude, magnitude * reduce_corner_mask, where=reduce_corner_mask.astype(bool))
-            # np.copyto(magnitude, magnitude * amplify_ring_mask, where=amplify_ring_mask.astype(bool))
+            # apply Hann window
+            windowed_image = image[:, :, channel] * hann_mask
+            windowed_fourier_domain = np.fft.fftshift(np.fft.fft2(windowed_image))
+            windowed_magnitude, _ = complex_to_polar_real(windowed_fourier_domain)
 
-            magnitude = magnitude * ring_mask
-
-            complex = polar_real_to_complex(magnitude, phase)
+            # apply ring enhance mask
+            exp_magnitude = windowed_magnitude * ring_mask
+            complex = polar_real_to_complex(exp_magnitude, phase)
             spatial_domain = np.fft.ifft2(np.fft.ifftshift(complex))
-            image_exp[:,:,channel] = np.real(spatial_domain)
+            spatial_domain = spatial_domain * hann_mask
+
+            image_exp[:,:,channel] = np.real(spatial_domain) # avoid border effect after edit
 
         image_exp = resize_auto_interpolation(image_exp, height, width)
         plt.imsave(save_dir / image_name, image_exp.astype(np.uint8))
