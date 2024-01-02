@@ -1,7 +1,5 @@
 import gc
 import itertools
-import os
-import sys
 from pathlib import Path
 
 import numpy as np
@@ -58,7 +56,7 @@ class FrequencyExp():
             ring_mask = create_smooth_ring_mask(images[0], inner_radius, outer_radius, blur_strength, ring_intensity)
             if not self.check_ring_mask(ring_mask, logger):
                 continue
-            ring_mask = self.fill_ring_mask(ring_mask, inner_radius)
+            ring_mask = self.fill_ring_mask(ring_mask)
         
             save_dir = Path(self.exp_dir) / f'{inner_radius}-{outer_radius} {blur_strength} ring-{ring_intensity:.1f} Hann-{center_intensity}'
             create_path_if_not_exists(save_dir)
@@ -105,8 +103,12 @@ class FrequencyExp():
             return False
         return True
 
-    def fill_ring_mask(self, ring_mask, inner_radius):
-        fill = create_radial_mask(ring_mask, inner_radius)
+    def fill_ring_mask(self, ring_mask: np.ndarray):
+        # draw mask to soft-fill the ring
+        mid_row = ring_mask[int(ring_mask.shape[0]/2)]
+        mask_radius = abs(int(len(mid_row)/2) - mid_row.argmax()) # touches highest value of the ring
+        fill = create_radial_mask(ring_mask, mask_radius)
+
         np.copyto(ring_mask, 1., where=np.logical_and(fill, ring_mask < 1))
         return ring_mask
 
