@@ -4,7 +4,7 @@ import numpy as np
 from const.constants import ALIAS_RING_WIDTH
 
 
-def create_radial_mask(img, radius):
+def create_radial_mask(img, radius: int):
     if radius < 0:
         raise ValueError("Radius must be non-negative.")
     
@@ -80,7 +80,7 @@ def create_smooth_ring_mask(img: np.ndarray, inner_radius, outer_radius, blur_st
     ring_mask = np.where((gradient > inner_radius*scale_up) & (gradient < outer_radius*scale_up), gradient, 0)
 
     smooth_ring = cv2.GaussianBlur(ring_mask, (blur_strength, blur_strength), 0, borderType=cv2.BORDER_CONSTANT)
-    smooth_ring = cv2.resize(smooth_ring, (width, height), interpolation=cv2.INTER_AREA)
+    smooth_ring = cv2.resize(smooth_ring, (mask_width, mask_height), interpolation=cv2.INTER_AREA) # resize to padded size
     smooth_ring = smooth_ring[border_y:border_y+height, border_x:border_x+width]
     smooth_ring = smooth_ring / np.max(smooth_ring) * max_intensity
     
@@ -90,4 +90,5 @@ def create_smooth_ring_mask(img: np.ndarray, inner_radius, outer_radius, blur_st
 
     return smooth_ring
 
-# create_smooth_ring_mask(np.zeros((640, 640)), 50, 51, 51, 1.2)
+# create_smooth_ring_mask(np.zeros((640, 640)), 275, 278, 51, 1.2)
+# plot_images([create_Hann_mask(np.zeros((640, 640)), i) for i in [4, 5, 6, 7]], ['4', '5', '6', '7'], 'test_Hann.png')
