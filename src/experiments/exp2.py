@@ -1,4 +1,3 @@
-import gc
 import itertools
 import os
 from pathlib import Path
@@ -112,6 +111,8 @@ class FrequencyExp():
         
         image_exp = np.array(image)
 
+        analyze_images = []
+
         for channel in range(3):
             fourier_domain = np.fft.fftshift(np.fft.fft2(image[:, :, channel]))
             magnitude, phase = complex_to_polar_real(fourier_domain)
@@ -125,11 +126,40 @@ class FrequencyExp():
             exp_magnitude = windowed_magnitude * ring_mask
             complex = polar_real_to_complex(exp_magnitude, phase)
             spatial_domain = np.fft.ifft2(np.fft.ifftshift(complex))
-            spatial_domain = spatial_domain * hann_mask
+            spatial_domain = spatial_domain * hann_mask # avoid border effect after edit
 
-            image_exp[:,:,channel] = np.real(spatial_domain) # avoid border effect after edit
+            # add images to analyze
+            if self.plot_analyze:
+                analyze_images.append(log_normalize(magnitude))
+                analyze_images.append(log_normalize(windowed_magnitude))
+                analyze_images.append(log_normalize(exp_magnitude))
+                spatial_magnitude, _ = complex_to_polar_real(spatial_domain)
+                analyze_images.append(spatial_magnitude)
+
+            image_exp[:,:,channel] = np.real(spatial_domain)
 
         image_exp = resize_auto_interpolation(image_exp, height, width)
         plt.imsave(save_dir / image_name, image_exp.astype(np.uint8))
+
+        if self.plot_analyze:
+            plot_images(analyze_images,
+                        [
+                            "[R] Fourier-domain mag",
+                            "[R] Windowed fourier-domain mag",
+                            "[R] Exp fourier-domain mag",
+                            "[R] Exp spatial-domain mag",
+
+                            "[G] Fourier-domain mag",
+                            "[G] Windowed fourier-domain mag",
+                            "[G] Exp fourier-domain mag",
+                            "[G] Exp spatial-domain mag",
+
+                            "[B] Fourier-domain mag",
+                            "[B] Windowed fourier-domain mag",
+                            "[B] Exp fourier-domain mag",
+                            "[B] Exp spatial-domain mag",
+                        ],
+                        Path(analyze_dir) / image_name,
+                        cols=4)
 
         return image_exp

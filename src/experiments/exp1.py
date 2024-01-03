@@ -37,9 +37,14 @@ class FrequencyExp():
         '''
         logger = MyLogger.getLog()
 
-        mask = create_radial_mask(np.zeros([images.shape[1], images.shape[2]]), self.r)
+        radii = list(np.arange(self.exp_values[0], self.exp_values[1], self.exp_values[2]))
+        alphas = list(np.arange(self.exp_values[3], self.exp_values[4], self.exp_values[5]))
 
-        for exp_value in self.exp_values:
+        combinations = list(itertools.product(radii, alphas))
+
+        for combo in combinations:
+            radius = int(combo[0])
+            alpha = round(combo[1], 2)
 
             mask = create_radial_mask(np.zeros([images.shape[1], images.shape[2]]), radius)
         
