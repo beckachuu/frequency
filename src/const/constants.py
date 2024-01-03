@@ -136,3 +136,7 @@ coco_91_classes= {
 }
 
 epsilon = 1e-7  # small constant
+
+ALIAS_RING_WIDTH = 6 # min width that will not create alias effect when applying Gaussian blur
+
+PLOT_FONT_SCALE = 40

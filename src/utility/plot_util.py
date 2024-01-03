@@ -17,12 +17,10 @@ import random
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
-from sklearn.metrics import precision_recall_curve
 
-from const.constants import coco_91_classes
+from const.constants import PLOT_FONT_SCALE, coco_91_classes
 
 plt.ioff()
-plt.rcParams.update({'font.size': 18})
 
 
 def draw_bbox(image, bboxes, classes=coco_91_classes, show_label=True, show_confidence=True,
@@ -91,6 +89,9 @@ def plot_images(images: list, titles: list, fig_save_path: str, cols: int = None
 
     # Assume the images all have the same size
     height, width = images[0].shape[:2]
+
+    # update font size according to image size
+    plt.rcParams.update({'font.size': width/PLOT_FONT_SCALE})
 
     # Calculate the size of the figure in inches
     fig_width = width * cols / dpi
