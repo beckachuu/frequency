@@ -1,5 +1,5 @@
-import gc
 import itertools
+import os
 from pathlib import Path
 
 import numpy as np
@@ -11,23 +11,23 @@ from utility.format_utils import (complex_to_polar_real, log_normalize,
 from utility.mask_util import (create_Hann_mask, create_radial_mask,
                                create_smooth_ring_mask)
 from utility.mylogger import MyLogger
-from utility.path_utils import create_path_if_not_exists
+from utility.path_utils import check_files_exist, create_path_if_not_exists
 from utility.plot_util import plot_images
 
 
 class FrequencyExp():
-    def __init__(self, exp_dir: str, exp_values: list, r: int=0):
-        self.r = r
-
+    def __init__(self, exp_dir: str, exp_values: list, force_exp: bool, plot_analyze: bool):
         self.exp_dir = exp_dir
 
         self.ring_path = ''
         self.soft_ring_path = ''
 
         self.exp_values = exp_values
+        self.force_exp = force_exp
+        self.plot_analyze = plot_analyze
 
 
-    def run_experiment(self, images, images_names, images_sizes) -> (list, list):
+    def run_experiment(self, batch_ind, images, images_names, images_sizes) -> (list, list):
         '''
         Image shape must be HWC.
         '''
@@ -42,15 +42,13 @@ class FrequencyExp():
         combinations = list(itertools.product(inner_radii, ring_widths, blur_strengths, max_intensities, center_intensities))
 
         for combo in combinations:
-            gc.collect() # avoid np.core._exceptions._ArrayMemoryError for creating and discarding large arrays frequently
-
             inner_radius = int(combo[0])
             outer_radius = int(combo[0] + combo[1])
             blur_strength = self.standardize_blur_strength(combo[2], logger)
             ring_intensity = combo[3]
             center_intensity = int(combo[4])
 
-            logger.info(f"Experimenting with: inner_radius = {inner_radius}, outer_radius = {outer_radius}, blur_strength = {blur_strength}, ring_intensity = {ring_intensity:.1f}, Hann_intensity = {center_intensity}")
+            logger.info(f"[BATCH {batch_ind}]: inner_radius = {inner_radius}, outer_radius = {outer_radius}, blur_strength = {blur_strength}, ring_intensity = {ring_intensity:.1f}, Hann_intensity = {center_intensity}")
 
             hann_mask = create_Hann_mask(images[0], center_intensity)
             ring_mask = create_smooth_ring_mask(images[0], inner_radius, outer_radius, blur_strength, ring_intensity)
@@ -59,17 +57,18 @@ class FrequencyExp():
             save_id = f'{inner_radius}-{outer_radius} {blur_strength} ring-{ring_intensity:.1f} Hann-{center_intensity}'
             if not self.check_ring_mask(ring_mask, logger):
                 save_id = '(no corner cut) ' + save_id
-        
             save_dir, analyze_dir = self.create_save_paths(save_id)
 
+            if not self.force_exp and check_files_exist([Path(save_dir, image_name) for image_name in images_names]):
+                logger.info(f'Skipping: force_exp is False and BATCH {batch_ind} has saved results for this setting.')
+                continue
+
             mask_plot_dir = Path(self.exp_dir, f'masks {save_id}.png')
+            if self.force_exp or not os.path.isfile(mask_plot_dir):
+                plot_images([ring_mask, hann_mask], [f'ring_mask blur-{blur_strength} intense-{ring_intensity:.1f}', f'hann_mask {center_intensity}'],
+                            mask_plot_dir)
 
-            # if not os.path.isfile(mask_plot_dir):
-            plot_images([ring_mask, hann_mask], [f'ring_mask blur-{blur_strength} intense-{ring_intensity:.1f}', f'hann_mask {center_intensity}'],
-                        mask_plot_dir)
             for i in range(images.shape[0]):
-                # logger.info(f"Experimenting on image: {images_names[i]}")
-
                 height = int(images_sizes[0][i])
                 width = int(images_sizes[1][i])
                 
@@ -112,6 +111,8 @@ class FrequencyExp():
         
         image_exp = np.array(image)
 
+        analyze_images = []
+
         for channel in range(3):
             fourier_domain = np.fft.fftshift(np.fft.fft2(image[:, :, channel]))
             magnitude, phase = complex_to_polar_real(fourier_domain)
@@ -125,11 +126,40 @@ class FrequencyExp():
             exp_magnitude = windowed_magnitude * ring_mask
             complex = polar_real_to_complex(exp_magnitude, phase)
             spatial_domain = np.fft.ifft2(np.fft.ifftshift(complex))
-            spatial_domain = spatial_domain * hann_mask
+            spatial_domain = spatial_domain * hann_mask # avoid border effect after edit
 
-            image_exp[:,:,channel] = np.real(spatial_domain) # avoid border effect after edit
+            # add images to analyze
+            if self.plot_analyze:
+                analyze_images.append(log_normalize(magnitude))
+                analyze_images.append(log_normalize(windowed_magnitude))
+                analyze_images.append(log_normalize(exp_magnitude))
+                spatial_magnitude, _ = complex_to_polar_real(spatial_domain)
+                analyze_images.append(spatial_magnitude)
+
+            image_exp[:,:,channel] = np.real(spatial_domain)
 
         image_exp = resize_auto_interpolation(image_exp, height, width)
         plt.imsave(save_dir / image_name, image_exp.astype(np.uint8))
+
+        if self.plot_analyze:
+            plot_images(analyze_images,
+                        [
+                            "[R] Fourier-domain mag",
+                            "[R] Windowed fourier-domain mag",
+                            "[R] Exp fourier-domain mag",
+                            "[R] Exp spatial-domain mag",
+
+                            "[G] Fourier-domain mag",
+                            "[G] Windowed fourier-domain mag",
+                            "[G] Exp fourier-domain mag",
+                            "[G] Exp spatial-domain mag",
+
+                            "[B] Fourier-domain mag",
+                            "[B] Windowed fourier-domain mag",
+                            "[B] Exp fourier-domain mag",
+                            "[B] Exp spatial-domain mag",
+                        ],
+                        Path(analyze_dir) / image_name,
+                        cols=4)
 
         return image_exp

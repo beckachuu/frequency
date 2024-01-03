@@ -13,7 +13,6 @@ class ANALYZE_FREQ:
     ANALYZE_FREQ = "ANALYZE_FREQ"
 
     r_values = "r_values"
-    force_detect = "force_detect"
 
 
 class EXPERIMENTS:
@@ -22,6 +21,8 @@ class EXPERIMENTS:
     exp_number = "exp_number"
     exp1_values = "exp1_values"
     exp2_values = "exp2_values"
+    force_exp = "force_exp"
+    plot_analyze = "plot_analyze"
     force_detect = "force_detect"
 
 

@@ -80,11 +80,21 @@ def get_filepaths_list(folder_path: str, extensions: list) -> list:
     filepaths.sort()
     return filepaths
 
-def count_filepaths(folder_path: str, extensions: list) -> list:
-    filepaths = []
-    for ext in extensions:
-        filepaths += glob.glob(os.path.join(folder_path, f"*.{ext}"))
-    return len(filepaths)
+
+def count_filepaths(folder_path: str, extensions: list = None) -> int:
+    if not extensions:
+        return len([name for name in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, name))])
+    else:
+        filepaths = []
+        for ext in extensions:
+            filepaths += glob.glob(os.path.join(folder_path, f"*.{ext}"))
+        return len(filepaths)
+    
+def check_files_exist(file_paths: list) -> bool:
+    for file_path in file_paths:
+        if not os.path.isfile(file_path):
+            return False
+    return True
 
 
 def get_last_path_element(path: str, n = 1) -> list:

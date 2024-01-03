@@ -16,7 +16,7 @@ from utility.mylogger import MyLogger
 def get_experiment(exp_number):
     try:
         experiment = import_module(f"experiments.exp{exp_number}")
-        frequencyExp = experiment.FrequencyExp(config.exp_dir, config.exp_value_set[exp_number-1])
+        frequencyExp = experiment.FrequencyExp(config.exp_dir, config.exp_value_set[exp_number-1], config.force_exp, config.plot_analyze)
         return frequencyExp
     except ModuleNotFoundError:
         sys.exit(f"Experiment {exp_number} does not exist.")
@@ -28,9 +28,10 @@ def run_exp(logger):
 
     frequency_exp = get_experiment(config.exp_number)
 
+    logger.info(f'[EXP {config.exp_number}]: Input path: {config.input_dir}. Input count: {len(dataset)}. force_exp = {config.force_exp}.')
+
     for i, (images, images_names, images_sizes) in enumerate(dataloader):
-        logger.info(f"BATCH {i}")
-        frequency_exp.run_experiment(images, images_names, images_sizes)
+        frequency_exp.run_experiment(i, images, images_names, images_sizes)
 
 
 

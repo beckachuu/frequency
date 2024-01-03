@@ -1,3 +1,4 @@
+import itertools
 import os
 import sys
 from pathlib import Path
@@ -14,13 +15,11 @@ from utility.format_utils import (complex_to_polar_real, polar_real_to_complex,
                                   resize_auto_interpolation)
 from utility.mask_util import create_radial_mask
 from utility.mylogger import MyLogger
-from utility.path_utils import create_path_if_not_exists
+from utility.path_utils import check_files_exist, create_path_if_not_exists
 
 
 class FrequencyExp():
-    def __init__(self, exp_dir: str, exp_values: list, r: int=0):
-        self.r = r
-
+    def __init__(self, exp_dir: str, exp_values: list, force_exp: bool, plot_analyze: bool):
         self.exp_dir = exp_dir
 
         self.phase_path = ''
@@ -28,27 +27,45 @@ class FrequencyExp():
         self.both_path = ''
 
         self.exp_values = exp_values
+        self.force_exp = force_exp
+        self.plot_analyze = plot_analyze
     
 
-    def run_experiment(self, images, images_names, images_sizes) -> (list, list):
+    def run_experiment(self, batch_ind, images, images_names, images_sizes) -> (list, list):
         '''
         Image shape must be HWC.
         '''
         logger = MyLogger.getLog()
 
-        mask = create_radial_mask(np.zeros([images.shape[1], images.shape[2]]), self.r)
+        radii = list(np.arange(self.exp_values[0], self.exp_values[1], self.exp_values[2]))
+        alphas = list(np.arange(self.exp_values[3], self.exp_values[4], self.exp_values[5]))
 
-        for exp_value in self.exp_values:
+        combinations = list(itertools.product(radii, alphas))
 
-            self.phase_path = Path(self.exp_dir) / f'hybrid_phase-{exp_value}'
-            self.magnitude_path = Path(self.exp_dir) / f'hybrid_magnitude-{exp_value}'
-            self.both_path = Path(self.exp_dir) / f'hybrid_both-{exp_value}'
+        for combo in combinations:
+            radius = int(combo[0])
+            alpha = round(combo[1], 2)
+
+            mask = create_radial_mask(np.zeros([images.shape[1], images.shape[2]]), radius)
+        
+            logger.info(f"[BATCH {batch_ind}]: exp_value = {alpha}")
+
+            self.phase_path = Path(self.exp_dir) / f'hybrid_phase-{alpha}'
+            self.magnitude_path = Path(self.exp_dir) / f'hybrid_magnitude-{alpha}'
+            self.both_path = Path(self.exp_dir) / f'hybrid_both-{alpha}'
+
+            images_list_check = [Path(self.phase_path, image_name) for image_name in images_names]
+            images_list_check += [Path(self.magnitude_path, image_name) for image_name in images_names]
+            images_list_check += [Path(self.both_path, image_name) for image_name in images_names]
+            
             create_path_if_not_exists(self.phase_path)
             create_path_if_not_exists(self.magnitude_path)
             create_path_if_not_exists(self.both_path)
 
-            for i in range(images.shape[0]):
-                logger.info(f"Experimenting on image: {images_names[i]}")
+            for i in range(len(images)):
+                if not self.force_exp and check_files_exist(images_list_check):
+                    logger.info(f'Skipping: force_exp is False and BATCH {batch_ind} has saved results for this setting.')
+                    continue
 
                 image_low = np.zeros([images.shape[1], images.shape[2], 3])
                 image_high = np.zeros([images.shape[1], images.shape[2], 3])
@@ -79,31 +96,11 @@ class FrequencyExp():
                     high_phases.append(high_phase)
                 
 
-                self.support_channel_info(exp_value, images[i], images_names[i], height, width, fourier_domains, high_magnitudes, high_phases)
-
-
-                # plot_images([
-                                
-                #             ],
-                #         [
-                #             "[R] Normal fourier-domain mag", "[R] Normal fourier-domain phase", 
-                #             "[R] High fourier-domain mag", "[R] High fourier-domain phase", 
-                #             "[R] High spatial-domain mag",
-
-                #             "[G] Normal fourier-domain mag", "[G] Normal fourier-domain phase", 
-                #             "[G] High fourier-domain mag", "[G] High fourier-domain phase", 
-                #             "[G] High spatial-domain mag",
-
-                #             "[B] Normal fourier-domain mag", "[B] Normal fourier-domain phase", 
-                #             "[B] High fourier-domain mag", "[B] High fourier-domain phase", 
-                #             "[B] High spatial-domain mag",
-                #         ],
-                #     Path(self.analyze_dir) / images_names[i],
-                #     cols=5)
+                self.support_channel_info(alpha, images[i], images_names[i], height, width, fourier_domains, high_magnitudes, high_phases)
 
 
 
-    def support_channel_info(self, exp_value, image, image_name, height, width, fourier_domains, high_magnitudes, high_phases):
+    def support_channel_info(self, alpha, image, image_name, height, width, fourier_domains, high_magnitudes, high_phases):
         hybrid_phase = np.array(image)
         hybrid_magnitude = np.array(image)
         hybrid_both = np.array(image)
@@ -111,11 +108,11 @@ class FrequencyExp():
         for channel in range(3):
             magnitude, phase = complex_to_polar_real(fourier_domains[channel])
             new_magnitude = magnitude \
-                + exp_value/2 * (high_magnitudes[channel - 1] - high_magnitudes[channel]) \
-                    + exp_value/2 * (high_magnitudes[channel - 2] - high_magnitudes[channel])
+                + alpha/2 * (high_magnitudes[channel - 1] - high_magnitudes[channel]) \
+                    + alpha/2 * (high_magnitudes[channel - 2] - high_magnitudes[channel])
             new_phase = phase \
-                + exp_value/2 * (high_phases[channel-1] - high_phases[channel]) \
-                    + exp_value/2 * (high_phases[channel-2] - high_phases[channel])
+                + alpha/2 * (high_phases[channel-1] - high_phases[channel]) \
+                    + alpha/2 * (high_phases[channel-2] - high_phases[channel])
 
             complex = polar_real_to_complex(magnitude, new_phase)
             spatial_domain = np.fft.ifft2(np.fft.ifftshift(complex))
