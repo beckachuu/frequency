@@ -54,16 +54,15 @@ class FrequencyExp():
 
             hann_mask = create_Hann_mask(images[0], center_intensity)
             ring_mask = create_smooth_ring_mask(images[0], inner_radius, outer_radius, blur_strength, ring_intensity)
-            if not self.check_ring_mask(ring_mask, logger):
-                continue
             ring_mask = self.fill_ring_mask(ring_mask)
+
+            save_id = f'{inner_radius}-{outer_radius} {blur_strength} ring-{ring_intensity:.1f} Hann-{center_intensity}'
+            if not self.check_ring_mask(ring_mask, logger):
+                save_id = '(no corner cut) ' + save_id
         
-            save_dir = Path(self.exp_dir) / f'{inner_radius}-{outer_radius} {blur_strength} ring-{ring_intensity:.1f} Hann-{center_intensity}'
-            create_path_if_not_exists(save_dir)
+            save_dir, analyze_dir = self.create_save_paths(save_id)
 
-
-            mask_plot_dir = Path(self.exp_dir, 
-                                 f'masks {inner_radius}-{outer_radius} {blur_strength} ring-{ring_intensity:.1f} Hann-{center_intensity}.png')
+            mask_plot_dir = Path(self.exp_dir, f'masks {save_id}.png')
 
             # if not os.path.isfile(mask_plot_dir):
             plot_images([ring_mask, hann_mask], [f'ring_mask blur-{blur_strength} intense-{ring_intensity:.1f}', f'hann_mask {center_intensity}'],
@@ -74,32 +73,20 @@ class FrequencyExp():
                 height = int(images_sizes[0][i])
                 width = int(images_sizes[1][i])
                 
-                exp_image = self.amplify_true_HFC(images[i], ring_mask, hann_mask, images_names[i], 
-                                        height, width, save_dir)
-
-                # plot_images([
-                                
-                #             ],
-                #         [
-                #             "[R] Normal fourier-domain mag",
-                #             "[R] Exp fourier-domain mag",
-                #             "[R] Exp spatial-domain mag",
-
-                #             "[G] Normal fourier-domain mag",
-                #             "[G] Exp fourier-domain mag",
-                #             "[G] Exp spatial-domain mag",
-
-                #             "[B] Normal fourier-domain mag",
-                #             "[B] Exp fourier-domain mag",
-                #             "[B] Exp spatial-domain mag",
-                #         ],
-                #     Path(save_dir) / images_names[i],
-                #     cols=3)
+                self.amplify_true_HFC(images[i], ring_mask, hann_mask, images_names[i], 
+                                        height, width, save_dir, analyze_dir)
     
+
+    def create_save_paths(self, save_id):
+        save_dir = Path(self.exp_dir, save_id)
+        create_path_if_not_exists(save_dir)
+        analyze_dir = Path(save_dir) / 'fourier_plots'
+        create_path_if_not_exists(analyze_dir)
+        return save_dir, analyze_dir
 
     def check_ring_mask(self, ring_mask, logger: MyLogger):
         if ring_mask[0][0] >= 1:
-            logger.warning(f'Ring mask does not work with this setting: corners are not reduced -> skipping to next set of values')
+            logger.debug(f'Corners are not reduced with this setting')
             return False
         return True
 
@@ -121,7 +108,7 @@ class FrequencyExp():
     
 
     def amplify_true_HFC(self, image, ring_mask, hann_mask, image_name,
-                         height, width, save_dir):
+                         height, width, save_dir, analyze_dir):
         
         image_exp = np.array(image)
 
