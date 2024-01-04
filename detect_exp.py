@@ -75,7 +75,7 @@ def detect(logger: Logger, detector, classes, input_path, output_path=None):
 
 if __name__ == "__main__":
     analyze_config(os.path.abspath('./config.ini'))
-    logger = MyLogger.getLog()
+    logger = MyLogger.getLog(config.quiet)
     
     detector = load_model()
     coco_91 = coco80_to_coco91_class()

@@ -15,9 +15,9 @@ class MyLogger:
     logger = None
 
     @staticmethod
-    def getLog():
+    def getLog(quiet=False):
         if (MyLogger.logger is None):
-            LOG_LEVEL = logging.DEBUG
+            LOG_LEVEL = logging.DEBUG if not quiet else logging.CRITICAL
             LOGFORMAT = "  %(log_color)s%(levelname)-8s%(reset)s | %(log_color)s%(message)s%(reset)s"
             from colorlog import ColoredFormatter
             logging.root.setLevel(LOG_LEVEL)

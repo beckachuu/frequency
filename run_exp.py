@@ -16,7 +16,8 @@ from utility.mylogger import MyLogger
 def get_experiment(exp_number):
     try:
         experiment = import_module(f"experiments.exp{exp_number}")
-        frequencyExp = experiment.FrequencyExp(config.exp_dir, config.exp_value_set[exp_number-1], config.force_exp, config.plot_analyze)
+        frequencyExp = experiment.FrequencyExp(logger, config.exp_dir, config.exp_value_set[exp_number-1], 
+                                               config.force_exp, config.plot_analyze)
         return frequencyExp
     except ModuleNotFoundError:
         sys.exit(f"Experiment {exp_number} does not exist.")
@@ -37,6 +38,6 @@ def run_exp(logger):
 
 if __name__ == "__main__":
     analyze_config(os.path.abspath('./config.ini'))
-    logger = MyLogger.getLog()
+    logger = MyLogger.getLog(config.quiet)
     
     run_exp(logger)
