@@ -7,6 +7,7 @@ class GENERAL_TXT:
     batch_size = "batch_size"
     plot_count = "plot_count"
     groundtruth_json = "groundtruth_json"
+    quiet = "quiet"
 
 
 class ANALYZE_FREQ:

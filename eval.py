@@ -121,7 +121,7 @@ def write_results(gt_instances, exp_detect_folders, origins_ap, analyzes_ap):
 
 if __name__ == "__main__":
     analyze_config(os.path.abspath('./config.ini'))
-    logger = MyLogger.getLog()
+    logger = MyLogger.getLog(config.quiet)
 
     iou_list = np.arange(0.5, 0.95 + 0.05, 0.05)
     gt_data = read_dict_from_json(config.groundtruth_json)["annotations"]

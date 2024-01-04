@@ -70,7 +70,7 @@ def plot(groundtruth, exp_folders, logger):
 
 if __name__ == "__main__":
     analyze_config(os.path.abspath('./config.ini'))
-    logger = MyLogger.getLog()
+    logger = MyLogger.getLog(config.quiet)
 
     gt_data = read_dict_from_json(config.groundtruth_json)["annotations"]
     exp_folders = get_exp_folders(config.exp_dir)

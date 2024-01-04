@@ -1,6 +1,7 @@
 import itertools
 import os
 import sys
+from logging import Logger
 from pathlib import Path
 
 import numpy as np
@@ -14,12 +15,13 @@ if module_path not in sys.path:
 from utility.format_utils import (complex_to_polar_real, polar_real_to_complex,
                                   resize_auto_interpolation)
 from utility.mask_util import create_radial_mask
-from utility.mylogger import MyLogger
 from utility.path_utils import check_files_exist, create_path_if_not_exists
 
 
 class FrequencyExp():
-    def __init__(self, exp_dir: str, exp_values: list, force_exp: bool, plot_analyze: bool):
+    def __init__(self, logger:Logger, exp_dir: str, exp_values: list, force_exp: bool, plot_analyze: bool):
+        self.logger = logger
+
         self.exp_dir = exp_dir
 
         self.phase_path = ''
@@ -35,7 +37,6 @@ class FrequencyExp():
         '''
         Image shape must be HWC.
         '''
-        logger = MyLogger.getLog()
 
         radii = list(np.arange(self.exp_values[0], self.exp_values[1], self.exp_values[2]))
         alphas = list(np.arange(self.exp_values[3], self.exp_values[4], self.exp_values[5]))
@@ -48,7 +49,7 @@ class FrequencyExp():
 
             mask = create_radial_mask(np.zeros([images.shape[1], images.shape[2]]), radius)
         
-            logger.info(f"[BATCH {batch_ind}]: exp_value = {alpha}")
+            self.logger.info(f"[BATCH {batch_ind}]: exp_value = {alpha}")
 
             self.phase_path = Path(self.exp_dir) / f'hybrid_phase-{alpha}'
             self.magnitude_path = Path(self.exp_dir) / f'hybrid_magnitude-{alpha}'
@@ -64,7 +65,7 @@ class FrequencyExp():
 
             for i in range(len(images)):
                 if not self.force_exp and check_files_exist(images_list_check):
-                    logger.info(f'Skipping: force_exp is False and BATCH {batch_ind} has saved results for this setting.')
+                    self.logger.info(f'Skipping: force_exp is False and BATCH {batch_ind} has saved results for this setting.')
                     continue
 
                 image_low = np.zeros([images.shape[1], images.shape[2], 3])

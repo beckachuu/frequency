@@ -19,6 +19,7 @@ class config:
     batch_size = -1
     plot_count = -1
     groundtruth_json = ""
+    quiet = False
     device = None
 
     # analyze frequency
@@ -57,6 +58,7 @@ def analyze_config(config_path):
     config.batch_size = int(config_parser[GENERAL_TXT.GENERAL][GENERAL_TXT.batch_size])
     config.plot_count = int(config_parser[GENERAL_TXT.GENERAL][GENERAL_TXT.plot_count])
     config.groundtruth_json = config_parser[GENERAL_TXT.GENERAL][GENERAL_TXT.groundtruth_json]
+    config.quiet = bool(config_parser[GENERAL_TXT.GENERAL][GENERAL_TXT.quiet])
     # config.groundtruth_data = read_dict_from_json(config.groundtruth_json)
     config.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

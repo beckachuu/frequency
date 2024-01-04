@@ -15,9 +15,10 @@ class MyLogger:
     logger = None
 
     @staticmethod
-    def getLog():
+    def getLog(quiet=False):
+        LOG_LEVEL = logging.DEBUG if not quiet else logging.CRITICAL
+
         if (MyLogger.logger is None):
-            LOG_LEVEL = logging.DEBUG
             LOGFORMAT = "  %(log_color)s%(levelname)-8s%(reset)s | %(log_color)s%(message)s%(reset)s"
             from colorlog import ColoredFormatter
             logging.root.setLevel(LOG_LEVEL)
@@ -27,12 +28,8 @@ class MyLogger:
             stream.setFormatter(formatter)
 
             MyLogger.logger = logging.getLogger('pythonConfig')
-            MyLogger.logger.setLevel(LOG_LEVEL)
             MyLogger.logger.addHandler(stream)
 
-            # MyLogger.logger.debug("A quirky message only developers care about")
-            # MyLogger.logger.info("Curious users might want to know this")
-            # MyLogger.logger.warn("Something is wrong and any user should be informed")
-            # MyLogger.logger.error("Serious stuff, this is red for a reason")
-            # MyLogger.logger.critical("OH NO everything is on fire")
+        MyLogger.logger.setLevel(LOG_LEVEL)
         return MyLogger.logger
+    

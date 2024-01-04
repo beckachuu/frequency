@@ -1,5 +1,6 @@
 import itertools
 import os
+from logging import Logger
 from pathlib import Path
 
 import numpy as np
@@ -10,13 +11,14 @@ from utility.format_utils import (complex_to_polar_real, log_normalize,
                                   resize_auto_interpolation)
 from utility.mask_util import (create_Hann_mask, create_radial_mask,
                                create_smooth_ring_mask)
-from utility.mylogger import MyLogger
 from utility.path_utils import check_files_exist, create_path_if_not_exists
 from utility.plot_util import plot_images
 
 
 class FrequencyExp():
-    def __init__(self, exp_dir: str, exp_values: list, force_exp: bool, plot_analyze: bool):
+    def __init__(self, logger:Logger, exp_dir: str, exp_values: list, force_exp: bool, plot_analyze: bool):
+        self.logger = logger
+
         self.exp_dir = exp_dir
 
         self.ring_path = ''
@@ -31,7 +33,6 @@ class FrequencyExp():
         '''
         Image shape must be HWC.
         '''
-        logger = MyLogger.getLog()
 
         inner_radii = list(np.arange(self.exp_values[0], self.exp_values[1], self.exp_values[2]))
         ring_widths = list(np.arange(self.exp_values[3], self.exp_values[4], self.exp_values[5]))
@@ -44,23 +45,23 @@ class FrequencyExp():
         for combo in combinations:
             inner_radius = int(combo[0])
             outer_radius = int(combo[0] + combo[1])
-            blur_strength = self.standardize_blur_strength(combo[2], logger)
+            blur_strength = self.standardize_blur_strength(combo[2])
             ring_intensity = combo[3]
             center_intensity = int(combo[4])
 
-            logger.info(f"[BATCH {batch_ind}]: inner_radius = {inner_radius}, outer_radius = {outer_radius}, blur_strength = {blur_strength}, ring_intensity = {ring_intensity:.1f}, Hann_intensity = {center_intensity}")
+            self.logger.info(f"[BATCH {batch_ind}]: inner_radius = {inner_radius}, outer_radius = {outer_radius}, blur_strength = {blur_strength}, ring_intensity = {ring_intensity:.1f}, Hann_intensity = {center_intensity}")
 
             hann_mask = create_Hann_mask(images[0], center_intensity)
             ring_mask = create_smooth_ring_mask(images[0], inner_radius, outer_radius, blur_strength, ring_intensity)
             ring_mask = self.fill_ring_mask(ring_mask)
 
             save_id = f'{inner_radius}-{outer_radius} {blur_strength} ring-{ring_intensity:.1f} Hann-{center_intensity}'
-            if not self.check_ring_mask(ring_mask, logger):
+            if not self.check_ring_mask(ring_mask):
                 save_id = '(no corner cut) ' + save_id
             save_dir, analyze_dir = self.create_save_paths(save_id)
 
             if not self.force_exp and check_files_exist([Path(save_dir, image_name) for image_name in images_names]):
-                logger.info(f'Skipping: force_exp is False and BATCH {batch_ind} has saved results for this setting.')
+                self.logger.info(f'Skipping: force_exp is False and BATCH {batch_ind} has saved results for this setting.')
                 continue
 
             mask_plot_dir = Path(self.exp_dir, f'masks {save_id}.png')
@@ -83,9 +84,9 @@ class FrequencyExp():
         create_path_if_not_exists(analyze_dir)
         return save_dir, analyze_dir
 
-    def check_ring_mask(self, ring_mask, logger: MyLogger):
+    def check_ring_mask(self, ring_mask):
         if ring_mask[0][0] >= 1:
-            logger.debug(f'Corners are not reduced with this setting')
+            self.logger.debug(f'Corners are not reduced with this setting')
             return False
         return True
 
@@ -99,10 +100,10 @@ class FrequencyExp():
         return ring_mask
 
 
-    def standardize_blur_strength(self, blur_strength, logger: MyLogger):
+    def standardize_blur_strength(self, blur_strength):
         if blur_strength % 2 == 0:
             blur_strength += 1
-            logger.debug(f'blur_strength is not odd (current value: {blur_strength-1}) -> normalized to {blur_strength}')
+            self.logger.debug(f'blur_strength is not odd (current value: {blur_strength-1}) -> normalized to {blur_strength}')
         return int(blur_strength)
     
 
