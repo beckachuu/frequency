@@ -94,9 +94,9 @@ class FrequencyExp():
 
     def fill_ring_mask(self, ring_mask: np.ndarray):
         # draw mask to soft-fill the ring
-        mid_row = ring_mask[int(ring_mask.shape[0]/2)]
-        mask_radius = abs(int(len(mid_row)/2) - mid_row.argmax()) # touches highest value of the ring
-        fill = create_radial_mask(ring_mask, mask_radius)
+        diag_line = np.diag(ring_mask)
+        mask_radius = abs(len(diag_line)/2 - diag_line.argmax()) * np.sqrt(2) # touches highest value of the ring
+        fill = create_radial_mask(ring_mask, int(mask_radius))
 
         np.copyto(ring_mask, 1., where=np.logical_and(fill, ring_mask < 1))
         return ring_mask
