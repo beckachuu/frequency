@@ -51,11 +51,9 @@ class FrequencyExp():
 
             self.logger.info(f"[BATCH {batch_ind}]: inner_radius = {inner_radius}, outer_radius = {outer_radius}, blur_strength = {blur_strength}, ring_intensity = {ring_intensity:.1f}, Hann_intensity = {center_intensity}")
 
-            hann_mask = create_Hann_mask(images[0], center_intensity)
-            ring_mask = create_smooth_ring_mask(images[0], inner_radius, outer_radius, blur_strength, ring_intensity)
-            ring_mask = self.fill_ring_mask(ring_mask)
-
             save_id = f'{inner_radius}-{outer_radius} {blur_strength} ring-{ring_intensity:.1f} Hann-{center_intensity}'
+            ring_mask = create_smooth_ring_mask(images[0], inner_radius, outer_radius, blur_strength, ring_intensity)
+
             if not self.check_ring_mask(ring_mask):
                 save_id = '(no corner cut) ' + save_id
             save_dir, analyze_dir = self.create_save_paths(save_id)
@@ -64,7 +62,11 @@ class FrequencyExp():
                 self.logger.info(f'Skipping: force_exp is False and BATCH {batch_ind} has saved results for this setting.')
                 continue
 
-            mask_plot_dir = Path(self.exp_dir, f'masks {save_id}.png')
+
+            hann_mask = create_Hann_mask(images[0], center_intensity)
+            ring_mask = self.fill_ring_mask(ring_mask)
+
+            mask_plot_dir = Path(analyze_dir, f'masks {save_id}.png')
             if self.force_exp or not os.path.isfile(mask_plot_dir):
                 plot_images([ring_mask, hann_mask], [f'ring_mask blur-{blur_strength} intense-{ring_intensity:.1f}', f'hann_mask {center_intensity}'],
                             mask_plot_dir)
