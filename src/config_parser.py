@@ -28,8 +28,6 @@ class config:
     # experiments
     exp_number = 0
     exp_value_set = []
-    exp1_values = []
-    exp2_values = []
     force_exp = False
     plot_analyze = False
     force_detect = False
@@ -67,9 +65,18 @@ def analyze_config(config_path):
 
     # analyze frequency
     config.exp_number = int(config_parser[EXPERIMENTS.EXPERIMENTS][EXPERIMENTS.exp_number])
-    config.exp1_values = str_to_list_num(config_parser[EXPERIMENTS.EXPERIMENTS][EXPERIMENTS.exp1_values])
-    config.exp2_values = str_to_list_num(config_parser[EXPERIMENTS.EXPERIMENTS][EXPERIMENTS.exp2_values])
-    config.exp_value_set.extend([config.exp1_values, config.exp2_values])
+    exp_i = 0
+    while True:
+        try:
+            exp_i += 1
+            exp_values = config_parser[EXPERIMENTS.EXPERIMENTS][EXPERIMENTS.exp_values + str(exp_i)]
+            try:
+                config.exp_value_set.append(str_to_list_num(exp_values))
+            except ValueError:
+                logger.error(f'In config file: exp_values for EXP{exp_i} is invalid.')
+                config.exp_value_set.append('')
+        except KeyError:
+            break
     config.force_exp = bool(config_parser[EXPERIMENTS.EXPERIMENTS][EXPERIMENTS.force_exp])
     config.plot_analyze = bool(config_parser[EXPERIMENTS.EXPERIMENTS][EXPERIMENTS.plot_analyze])
     config.force_detect = bool(config_parser[EXPERIMENTS.EXPERIMENTS][EXPERIMENTS.force_detect])

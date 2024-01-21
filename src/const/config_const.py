@@ -20,8 +20,7 @@ class EXPERIMENTS:
     EXPERIMENTS = "EXPERIMENTS"
 
     exp_number = "exp_number"
-    exp1_values = "exp1_values"
-    exp2_values = "exp2_values"
+    exp_values = "exp_values"
     force_exp = "force_exp"
     plot_analyze = "plot_analyze"
     force_detect = "force_detect"
