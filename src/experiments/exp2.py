@@ -49,14 +49,15 @@ class FrequencyExp():
             ring_intensity = combo[3]
             center_intensity = int(combo[4])
 
-            self.logger.info(f"[BATCH {batch_ind}]: inner_radius = {inner_radius}, outer_radius = {outer_radius}, blur_strength = {blur_strength}, ring_intensity = {ring_intensity:.1f}, Hann_intensity = {center_intensity}")
+            self.logger.info(f"[BATCH {batch_ind}]: inner_radius = {inner_radius}, outer_radius = {outer_radius}, blur_strength = {blur_strength}, ring_intensity = {ring_enhance:.1f}, Hann_intensity = {hann_intensity}")
 
-            save_id = f'{inner_radius}-{outer_radius} {blur_strength} ring-{ring_intensity:.1f} Hann-{center_intensity}'
+            save_id = f'{inner_radius}-{outer_radius} {blur_strength} ring-{ring_enhance:.1f} Hann-{hann_intensity}'
             ring_mask = create_smooth_ring_mask(images[0], inner_radius, outer_radius, blur_strength, ring_intensity)
 
             if not self.check_ring_mask(ring_mask):
                 save_id = '(no corner cut) ' + save_id
-            save_dir, analyze_dir = self.create_save_paths(save_id)
+            save_dir = Path(self.exp_dir, save_id)
+            create_path_if_not_exists(save_dir)
 
             if not self.force_exp and check_files_exist([Path(save_dir, image_name) for image_name in images_names]):
                 self.logger.info(f'Skipping: force_exp is False and BATCH {batch_ind} has saved results for this setting.')
@@ -66,25 +67,23 @@ class FrequencyExp():
             hann_mask = create_Hann_mask(images[0], center_intensity)
             ring_mask = self.fill_ring_mask(ring_mask)
 
-            mask_plot_dir = Path(analyze_dir, f'masks {save_id}.png')
-            if self.force_exp or not os.path.isfile(mask_plot_dir):
-                plot_images([ring_mask, hann_mask], [f'ring_mask blur-{blur_strength} intense-{ring_intensity:.1f}', f'hann_mask {center_intensity}'],
-                            mask_plot_dir)
+            mask_plot_dir = Path(self.exp_dir, 'masks')
+            create_path_if_not_exists(mask_plot_dir)
+            plt.imsave(Path(mask_plot_dir, f'ring_mask blur-{blur_strength} intense-{ring_enhance:.1f}.png'), ring_mask)
+            if hann_intensity > 0:
+                plt.imsave(Path(mask_plot_dir, f'hann_mask {hann_intensity}.png'), hann_mask)
+
+            analyze_dir = Path(save_dir) / 'fourier_plots'
+            create_path_if_not_exists(analyze_dir)
 
             for i in range(images.shape[0]):
-                height = int(images_sizes[0][i])
-                width = int(images_sizes[1][i])
+                img_h = int(images_sizes[0][i])
+                img_w = int(images_sizes[1][i])
                 
-                self.amplify_true_HFC(images[i], ring_mask, hann_mask, images_names[i], 
-                                        height, width, save_dir, analyze_dir)
-    
+                self.amplify_true_HFC(images[i], big_img, ring_mask, hann_mask, images_names[i], 
+                                        square_h, square_w, img_h, img_w, save_dir, analyze_dir)
 
-    def create_save_paths(self, save_id):
-        save_dir = Path(self.exp_dir, save_id)
-        create_path_if_not_exists(save_dir)
-        analyze_dir = Path(save_dir) / 'fourier_plots'
-        create_path_if_not_exists(analyze_dir)
-        return save_dir, analyze_dir
+    
 
     def check_ring_mask(self, ring_mask):
         if ring_mask[0][0] >= 1:
@@ -96,7 +95,8 @@ class FrequencyExp():
         # draw mask to soft-fill the ring
         diag_line = np.diag(ring_mask)
         mask_radius = abs(len(diag_line)/2 - diag_line.argmax()) * np.sqrt(2) # touches highest value of the ring
-        fill = create_radial_mask(ring_mask, int(mask_radius))
+        h, w = ring_mask.shape[:2]
+        fill = create_radial_mask(h, w, int(mask_radius))
 
         np.copyto(ring_mask, 1., where=np.logical_and(fill, ring_mask < 1))
         return ring_mask
@@ -141,7 +141,7 @@ class FrequencyExp():
 
             image_exp[:,:,channel] = np.real(spatial_domain)
 
-        image_exp = resize_auto_interpolation(image_exp, height, width)
+        image_exp = resize_auto_interpolation(image_exp, img_h, img_w)
         plt.imsave(save_dir / image_name, image_exp.astype(np.uint8))
 
         if self.plot_analyze:
