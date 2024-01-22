@@ -3,7 +3,12 @@ import os
 from logging import Logger
 from pathlib import Path
 
-import numpy as np
+try:
+    import cupy as np
+    print("Running cupy with GPU")
+except ImportError:
+    import numpy as np
+    print("Running numpy with CPU")
 from matplotlib import pyplot as plt
 
 from utility.format_utils import (complex_to_polar_real, crop_center,

@@ -2,7 +2,10 @@ import os
 import sys
 
 import cv2
-import numpy as np
+try:
+    import cupy as np
+except ImportError:
+    import numpy as np
 
 module_path = os.path.abspath(os.getcwd() + "/src")
 if module_path not in sys.path:

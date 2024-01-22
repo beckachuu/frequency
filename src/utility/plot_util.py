@@ -16,7 +16,10 @@ import random
 
 import cv2
 import matplotlib.pyplot as plt
-import numpy as np
+try:
+    import cupy as np
+except ImportError:
+    import numpy as np
 
 from const.constants import PLOT_FONT_SCALE, coco_91_classes
 
