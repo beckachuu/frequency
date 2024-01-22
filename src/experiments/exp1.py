@@ -47,7 +47,7 @@ class FrequencyExp():
             radius = int(combo[0])
             alpha = round(combo[1], 2)
 
-            mask = create_radial_mask(np.zeros([images.shape[1], images.shape[2]]), radius)
+            mask = create_radial_mask([images.shape[1], images.shape[2]], radius)
         
             self.logger.info(f"[BATCH {batch_ind}]: exp_value = {alpha}")
 

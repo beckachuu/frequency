@@ -34,6 +34,15 @@ def resize_auto_interpolation_same(images, height=yolov5_input_size, width=yolov
         results.append(resize_auto_interpolation(image, height, width))
     return results
 
+def crop_center(img, crop_h, crop_w):
+    y, x = img.shape[:2]
+    startx = x//2 - crop_w//2
+    starty = y//2 - crop_h//2
+    if img.ndim == 3:
+        return img[starty:starty+crop_h, startx:startx+crop_w, :]
+    else:
+        return img[starty:starty+crop_h, startx:startx+crop_w]
+
 
 def preprocess_image_from_url_to_1(img_path, resize_yolo=True):
     image, height, width = preprocess_image_from_url_to_255HWC(img_path, resize_yolo)

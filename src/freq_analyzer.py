@@ -32,7 +32,7 @@ class FrequencyAnalyzer():
         '''
         logger = MyLogger.getLog()
 
-        mask = create_radial_mask(np.zeros([images.shape[1], images.shape[2]]), self.r)
+        mask = create_radial_mask(images.shape[1], images.shape[2], self.r)
         for i in range(images.shape[0]):
             logger.info(f"Analyzing image: {images_names[i]}")
 
