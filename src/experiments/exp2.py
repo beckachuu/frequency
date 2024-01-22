@@ -13,7 +13,7 @@ from matplotlib import pyplot as plt
 
 from utility.format_utils import (complex_to_polar_real, crop_center,
                                   log_normalize, polar_real_to_complex,
-                                  resize_auto_interpolation)
+                                  resize_auto_interpolation, to_cupy, to_numpy)
 from utility.mask_util import (create_Hann_mask, create_radial_mask,
                                create_smooth_ring_mask, smooth_edges)
 from utility.path_utils import check_files_exist, create_path_if_not_exists
@@ -78,9 +78,9 @@ class FrequencyExp():
 
             mask_plot_dir = Path(self.exp_dir, 'masks')
             create_path_if_not_exists(mask_plot_dir)
-            plt.imsave(Path(mask_plot_dir, f'ring_mask blur-{blur_strength} intense-{ring_enhance:.1f}.png'), ring_mask)
+            plt.imsave(Path(mask_plot_dir, f'ring_mask blur-{blur_strength} intense-{ring_enhance:.1f}.png'), to_numpy(ring_mask))
             if hann_intensity > 0:
-                plt.imsave(Path(mask_plot_dir, f'hann_mask {hann_intensity}.png'), hann_mask)
+                plt.imsave(Path(mask_plot_dir, f'hann_mask {hann_intensity}.png'), to_numpy(hann_mask))
 
             analyze_dir = Path(save_dir) / 'fourier_plots'
             create_path_if_not_exists(analyze_dir)
@@ -128,11 +128,12 @@ class FrequencyExp():
         analyze_images = []
 
         for channel in range(3):
-            fourier_domain = np.fft.fftshift(np.fft.fft2(image[:, :, channel]))
+            image_channel = to_cupy(image[:, :, channel])
+            fourier_domain = np.fft.fftshift(np.fft.fft2(image_channel))
             magnitude, _ = complex_to_polar_real(fourier_domain)
 
             # smooth edges to avoid edge effects
-            windowed_image = smooth_edges(image[:, :, channel], big_img, hann_mask)
+            windowed_image = smooth_edges(image_channel, big_img, hann_mask)
             windowed_fourier_domain = np.fft.fftshift(np.fft.fft2(windowed_image))
             windowed_magnitude, windowed_phase = complex_to_polar_real(windowed_fourier_domain)
 
@@ -144,16 +145,16 @@ class FrequencyExp():
 
             # add images to analyze
             if self.plot_analyze:
-                analyze_images.append(log_normalize(magnitude))
-                analyze_images.append(log_normalize(windowed_magnitude))
-                analyze_images.append(log_normalize(exp_magnitude))
+                analyze_images.append(to_numpy(log_normalize(magnitude)))
+                analyze_images.append(to_numpy(log_normalize(windowed_magnitude)))
+                analyze_images.append(to_numpy(log_normalize(exp_magnitude)))
                 spatial_magnitude, _ = complex_to_polar_real(exp_spatial_domain)
-                analyze_images.append(spatial_magnitude)
+                analyze_images.append(to_numpy(spatial_magnitude))
 
             image_exp[:,:,channel] = np.real(exp_spatial_domain)
 
         image_exp = resize_auto_interpolation(image_exp, img_h, img_w)
-        plt.imsave(save_dir / image_name, image_exp.astype(np.uint8))
+        plt.imsave(save_dir / image_name, to_numpy(image_exp.astype(np.uint8)))
 
         if self.plot_analyze:
             plot_images(analyze_images,
