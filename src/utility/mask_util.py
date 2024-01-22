@@ -85,5 +85,41 @@ def create_smooth_ring_mask(height: int, width: int, inner_radius: float, outer_
 
     return smooth_ring
 
-# create_smooth_ring_mask(np.zeros((640, 640)), 275, 278, 51, 1.2)
+
+def smooth_edges(image: np.ndarray, big_img: np.ndarray, hann_mask=None) -> np.ndarray:
+    image = np.array(image)
+    if hann_mask is None:
+        hann_mask = create_Hann_mask(big_img, 1)
+    
+    if image.ndim == 3:
+        height, width, channels = image.shape
+    else:
+        height, width = image.shape
+        channels = 1
+
+    for channel in range(channels):
+        if channels == 1:
+            channel_image = image
+        else:
+            channel_image = image[:, :, channel]
+
+        flip_h = np.flip(channel_image, 1)
+        flip_v = np.flip(channel_image, 0)
+        flip_both = np.flip(channel_image, (0, 1))
+        # TODO: handle when big_img is not exactly 3 times larger
+        if big_img.ndim == 3:
+            big_img[height:2*height,width:2*width,channel] = channel_image
+            big_img[:height,width:2*width,channel] = big_img[2*height:3*height,width:2*width,channel] = flip_h
+            big_img[height:2*height,:width,channel] = big_img[height:2*height,2*width:3*width,channel] = flip_v
+            big_img[:height,:width,channel] = big_img[2*height:3*height,:width,channel] = flip_both
+            big_img[:height,2*width:3*width,channel] = big_img[2*height:3*height,2*width:3*width,channel] = flip_both
+        else:
+            big_img[height:2*height,width:2*width] = channel_image
+            big_img[:height,width:2*width] = big_img[2*height:3*height,width:2*width] = flip_h
+            big_img[height:2*height,:width] = big_img[height:2*height,2*width:3*width] = flip_v
+            big_img[:height,:width] = big_img[2*height:3*height,:width] = flip_both
+            big_img[:height,2*width:3*width] = big_img[2*height:3*height,2*width:3*width] = flip_both
+
+        big_img = big_img * hann_mask
+    return big_img
 # plot_images([create_Hann_mask(np.zeros((640, 640)), i) for i in [4, 5, 6, 7]], ['4', '5', '6', '7'], 'test_Hann.png')

@@ -6,11 +6,11 @@ from pathlib import Path
 import numpy as np
 from matplotlib import pyplot as plt
 
-from utility.format_utils import (complex_to_polar_real, log_normalize,
-                                  polar_real_to_complex,
+from utility.format_utils import (complex_to_polar_real, crop_center,
+                                  log_normalize, polar_real_to_complex,
                                   resize_auto_interpolation)
 from utility.mask_util import (create_Hann_mask, create_radial_mask,
-                               create_smooth_ring_mask)
+                               create_smooth_ring_mask, smooth_edges)
 from utility.path_utils import check_files_exist, create_path_if_not_exists
 from utility.plot_util import plot_images
 
@@ -34,25 +34,30 @@ class FrequencyExp():
         Image shape must be HWC.
         '''
 
-        inner_radii = list(np.arange(self.exp_values[0], self.exp_values[1], self.exp_values[2]))
-        ring_widths = list(np.arange(self.exp_values[3], self.exp_values[4], self.exp_values[5]))
-        blur_strengths = list(np.arange(self.exp_values[6], self.exp_values[7], self.exp_values[8]))
-        max_intensities = list(np.arange(self.exp_values[9], self.exp_values[10], self.exp_values[11]))
+        inner_radii = list(np.arange(self.exp_values[0], self.exp_values[1] + self.exp_values[2], self.exp_values[2]))
+        ring_widths = list(np.arange(self.exp_values[3], self.exp_values[4] + self.exp_values[5], self.exp_values[5]))
+        blur_strengths = list(np.arange(self.exp_values[6], self.exp_values[7] + self.exp_values[8], self.exp_values[8]))
+        max_intensities = list(np.arange(self.exp_values[9], self.exp_values[10] + self.exp_values[11], self.exp_values[11]))
         center_intensities = self.exp_values[12:]
+
+        square_h, square_w = images[0].shape[:2]
+        big_img = np.zeros((square_h * 3, square_w * 3))
+        big_h, big_w = big_img.shape[:2]
 
         combinations = list(itertools.product(inner_radii, ring_widths, blur_strengths, max_intensities, center_intensities))
 
         for combo in combinations:
-            inner_radius = int(combo[0])
-            outer_radius = int(combo[0] + combo[1])
-            blur_strength = self.standardize_blur_strength(combo[2])
-            ring_intensity = combo[3]
-            center_intensity = int(combo[4])
+            half_size =  max(big_h, big_w) / 2
+            inner_radius = int(combo[0] * half_size)
+            outer_radius = int(combo[0] + combo[1] * half_size)
+            blur_strength = self.standardize_blur_strength(combo[2] * half_size)
+            ring_enhance = combo[3]
+            hann_intensity = int(combo[4])
 
             self.logger.info(f"[BATCH {batch_ind}]: inner_radius = {inner_radius}, outer_radius = {outer_radius}, blur_strength = {blur_strength}, ring_intensity = {ring_enhance:.1f}, Hann_intensity = {hann_intensity}")
 
             save_id = f'{inner_radius}-{outer_radius} {blur_strength} ring-{ring_enhance:.1f} Hann-{hann_intensity}'
-            ring_mask = create_smooth_ring_mask(images[0], inner_radius, outer_radius, blur_strength, ring_intensity)
+            ring_mask = create_smooth_ring_mask(big_h, big_w, inner_radius, outer_radius, blur_strength, ring_enhance)
 
             if not self.check_ring_mask(ring_mask):
                 save_id = '(no corner cut) ' + save_id
@@ -63,8 +68,7 @@ class FrequencyExp():
                 self.logger.info(f'Skipping: force_exp is False and BATCH {batch_ind} has saved results for this setting.')
                 continue
 
-
-            hann_mask = create_Hann_mask(images[0], center_intensity)
+            hann_mask = create_Hann_mask(big_h, big_w, hann_intensity)
             ring_mask = self.fill_ring_mask(ring_mask)
 
             mask_plot_dir = Path(self.exp_dir, 'masks')
@@ -95,6 +99,8 @@ class FrequencyExp():
         # draw mask to soft-fill the ring
         diag_line = np.diag(ring_mask)
         mask_radius = abs(len(diag_line)/2 - diag_line.argmax()) * np.sqrt(2) # touches highest value of the ring
+        if mask_radius < 1:
+            return ring_mask
         h, w = ring_mask.shape[:2]
         fill = create_radial_mask(h, w, int(mask_radius))
 
@@ -109,8 +115,8 @@ class FrequencyExp():
         return int(blur_strength)
     
 
-    def amplify_true_HFC(self, image, ring_mask, hann_mask, image_name,
-                         height, width, save_dir, analyze_dir):
+    def amplify_true_HFC(self, image, big_img, ring_mask, hann_mask, image_name,
+                         square_h, square_w, img_h, img_w, save_dir, analyze_dir):
         
         image_exp = np.array(image)
 
@@ -118,28 +124,28 @@ class FrequencyExp():
 
         for channel in range(3):
             fourier_domain = np.fft.fftshift(np.fft.fft2(image[:, :, channel]))
-            magnitude, phase = complex_to_polar_real(fourier_domain)
+            magnitude, _ = complex_to_polar_real(fourier_domain)
 
-            # apply Hann window
-            windowed_image = image[:, :, channel] * hann_mask
+            # smooth edges to avoid edge effects
+            windowed_image = smooth_edges(image[:, :, channel], big_img, hann_mask)
             windowed_fourier_domain = np.fft.fftshift(np.fft.fft2(windowed_image))
-            windowed_magnitude, _ = complex_to_polar_real(windowed_fourier_domain)
+            windowed_magnitude, windowed_phase = complex_to_polar_real(windowed_fourier_domain)
 
             # apply ring enhance mask
             exp_magnitude = windowed_magnitude * ring_mask
-            complex = polar_real_to_complex(exp_magnitude, phase)
-            spatial_domain = np.fft.ifft2(np.fft.ifftshift(complex))
-            spatial_domain = spatial_domain * hann_mask # avoid border effect after edit
+            complex = polar_real_to_complex(exp_magnitude, windowed_phase)
+            exp_spatial_domain = np.fft.ifft2(np.fft.ifftshift(complex))
+            exp_spatial_domain = crop_center(exp_spatial_domain, square_h, square_w)
 
             # add images to analyze
             if self.plot_analyze:
                 analyze_images.append(log_normalize(magnitude))
                 analyze_images.append(log_normalize(windowed_magnitude))
                 analyze_images.append(log_normalize(exp_magnitude))
-                spatial_magnitude, _ = complex_to_polar_real(spatial_domain)
+                spatial_magnitude, _ = complex_to_polar_real(exp_spatial_domain)
                 analyze_images.append(spatial_magnitude)
 
-            image_exp[:,:,channel] = np.real(spatial_domain)
+            image_exp[:,:,channel] = np.real(exp_spatial_domain)
 
         image_exp = resize_auto_interpolation(image_exp, img_h, img_w)
         plt.imsave(save_dir / image_name, image_exp.astype(np.uint8))
