@@ -2,7 +2,10 @@ import os
 import sys
 
 import cv2
-import numpy as np
+try:
+    import cupy as np
+except ImportError:
+    import numpy as np
 
 module_path = os.path.abspath(os.getcwd() + "/src")
 if module_path not in sys.path:
@@ -18,6 +21,8 @@ def resize_auto_interpolation(image: np.ndarray, height=yolov5_input_size, width
     height = int(height)
     width = int(width)
 
+    image = to_numpy(image)
+
     if image.shape[0] * image.shape[1] < height * width:
         image = cv2.resize(image, (width, height), interpolation=cv2.INTER_CUBIC)
     else:
@@ -31,7 +36,7 @@ def resize_auto_interpolation_same(images, height=yolov5_input_size, width=yolov
     '''
     results = []
     for image in images:
-        results.append(resize_auto_interpolation(image, height, width))
+        results.append(resize_auto_interpolation(to_numpy(image), height, width))
     return results
 
 def crop_center(img, crop_h, crop_w):
@@ -132,4 +137,15 @@ def str_to_list_num(s: str) -> list:
     if s.find('.') != -1:
         return str_to_list_float(s)
     return str_to_list_int(s)
+
+
+def to_numpy(data):
+    if 'numpy' not in str(type(data)):
+        data = np.asnumpy(data)
+    return data
+
+def to_cupy(data):
+    if 'cupy' not in str(type(data)):
+        data = np.asarray(data)
+    return data
 

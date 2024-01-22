@@ -1,7 +1,11 @@
 import cv2
-import numpy as np
+try:
+    import cupy as np
+except ImportError:
+    import numpy as np
 
 from const.constants import ALIAS_RING_WIDTH
+from utility.format_utils import to_cupy, to_numpy
 
 
 def create_radial_mask(height: int, width: int, radius: int):
@@ -74,9 +78,11 @@ def create_smooth_ring_mask(height: int, width: int, inner_radius: float, outer_
 
     ring_mask = np.where((gradient > inner_radius*scale_up) & (gradient < outer_radius*scale_up), gradient, 0)
 
+    ring_mask = to_numpy(ring_mask)
     smooth_ring = cv2.GaussianBlur(ring_mask, (blur_strength, blur_strength), 0, borderType=cv2.BORDER_CONSTANT)
     smooth_ring = cv2.resize(smooth_ring, (mask_width, mask_height), interpolation=cv2.INTER_AREA) # resize to padded size
     smooth_ring = smooth_ring[border_y:border_y+height, border_x:border_x+width]
+    smooth_ring = to_cupy(smooth_ring)
     smooth_ring = smooth_ring / np.max(smooth_ring) * max_enhance
     
     # plt.imshow(smooth_ring)

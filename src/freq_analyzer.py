@@ -1,6 +1,9 @@
 from pathlib import Path
 
-import numpy as np
+try:
+    import cupy as np
+except ImportError:
+    import numpy as np
 from matplotlib import pyplot as plt
 
 from utility.format_utils import (complex_to_polar_real, log_normalize,

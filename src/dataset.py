@@ -3,7 +3,10 @@ from pathlib import Path
 
 import cv2
 import h5py
-import numpy as np
+try:
+    import cupy as np
+except ImportError:
+    import numpy as np
 import torch.utils.data as udata
 
 from utility.format_utils import preprocess_image_from_url_to_255HWC

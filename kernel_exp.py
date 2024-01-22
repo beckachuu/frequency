@@ -2,8 +2,12 @@ import os
 import sys
 
 import matplotlib.pyplot as plt
-import numpy as np
-import numpy.fft as fft
+try:
+    import cupy as np
+    print("Running cupy with GPU")
+except ImportError:
+    import numpy as np
+    print("Running numpy with CPU")
 
 module_path = os.path.abspath(os.getcwd() + "/src")
 if module_path not in sys.path:
@@ -47,8 +51,8 @@ for i, kernel in enumerate(kernels):
 
     # padded_kernel = np.pad(kernel, pad_width=((0, 637), (0, 637)), mode='constant') # corner padding
     padded_kernel = np.pad(kernel, pad_width=(320, 320), mode='constant') # center padding
-    fourier_transform = fft.fft2(padded_kernel)
-    fourier_transform_shifted = fft.fftshift(fourier_transform)
+    fourier_transform = np.fft.fft2(padded_kernel)
+    fourier_transform_shifted = np.fft.fftshift(fourier_transform)
 
     magnitude, phase = complex_to_polar_real(fourier_transform_shifted)
 
