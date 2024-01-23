@@ -130,13 +130,27 @@ def str_to_list_float(s: str) -> list:
     int_list = [float(s) for s in s_list]
     return int_list
 
-def str_to_list_num(s: str) -> list:
+def str_to_list_num(s: str):
     '''
     s: string contain multiple elements, separated by comma (may include space)
+    Each list is separated by a slash ('/').
     '''
-    if s.find('.') != -1:
-        return str_to_list_float(s)
-    return str_to_list_int(s)
+    lists_str = s.split('/')
+
+    if len(lists_str) == 1:
+        if lists_str[0].find('.') != -1:
+            return str_to_list_float(lists_str[0])
+        else:
+            return str_to_list_int(lists_str[0])
+    else:
+        lists_num = []
+        for list_str in lists_str:
+            if list_str.find('.') != -1:
+                lists_num.append(str_to_list_float(list_str))
+            else:
+                lists_num.append(str_to_list_int(list_str))
+
+        return lists_num
 
 
 def to_numpy(data):

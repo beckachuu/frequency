@@ -14,10 +14,11 @@ def create_radial_mask(height: int, width: int, radius: int):
     
     center = (width // 2, height // 2)
     mask = np.zeros((height, width))
+    mask = to_numpy(mask)
     cv2.circle(mask, center, radius, (1, 1, 1), thickness=-1)
 
     # plt.imsave(Path(self.analyze_dir) / f'circle_mask_{exp_value}.png', circle_mask.astype(np.uint8))
-    return mask
+    return to_cupy(mask)
 
 
 def create_Hann_mask(height: int, width: int, center_intensity: int = 0):
@@ -43,7 +44,7 @@ def create_Hann_mask(height: int, width: int, center_intensity: int = 0):
     return hann_2d
 
 
-def create_smooth_ring_mask(height: int, width: int, inner_radius: float, outer_radius, blur_strength, max_enhance):
+def create_smooth_ring_mask(height: int, width: int, inner_radius, outer_radius, blur_strength, max_enhance):
     """
     Creates a smooth ring mask with the given inner and outer radii.
 
@@ -57,6 +58,9 @@ def create_smooth_ring_mask(height: int, width: int, inner_radius: float, outer_
 
     if blur_strength <= 0 or blur_strength % 2 == 0:
         raise ValueError(f'blur_strength must be odd and positive, {blur_strength} is invalid.')
+    
+    if outer_radius <= inner_radius:
+        raise ValueError(f'outer_radius (current value: {outer_radius}) must be greater than inner_radius (current value: {inner_radius}).')
 
     # Scale image up if ring width is too thin -> avoid artifacts on thin ring
     scale_up = max(1, int(ALIAS_RING_WIDTH / (outer_radius - inner_radius)))
