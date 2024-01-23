@@ -3,12 +3,7 @@ import os
 import sys
 from pathlib import Path
 
-try:
-    import cupy as np
-    print("Running cupy with GPU")
-except ImportError:
-    import numpy as np
-    print("Running numpy with CPU")
+import numpy as np
 
 module_path = os.path.abspath(os.getcwd() + "/src")
 if module_path not in sys.path:

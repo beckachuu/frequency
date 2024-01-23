@@ -14,6 +14,7 @@ if module_path not in sys.path:
 
 from config_parser import analyze_config, config
 from dataset import PathDataset
+from utility.format_utils import to_cupy
 from utility.mylogger import MyLogger
 from utility.path_utils import (count_filepaths, create_path_if_not_exists,
                                 get_exp_folders, get_last_path_element)
@@ -34,7 +35,7 @@ def save_results(detector, coco_91, filepaths, save_dir):
 
     # Save bounding boxes
     for i, xyxy in enumerate(detect_results.xyxy):
-        xyxy = xyxy.numpy()
+        xyxy = to_cupy(xyxy)
         filename = get_last_path_element(filepaths[i]).split('.')[0]
 
         with open(Path(save_dir) / f"{filename}.txt", "w+") as f:

@@ -2,10 +2,7 @@
 Adapted from https://github.com/Cartucho/mAP
 """
 
-try:
-    import cupy as np
-except ImportError:
-    import numpy as np
+import numpy as np
 
 from const.constants import coco_91_classes
 from utility.path_utils import get_filepaths_list, get_last_path_element
