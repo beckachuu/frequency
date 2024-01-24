@@ -58,7 +58,7 @@ class FrequencyAnalyzer():
                 # Low frequency
                 fourier_domain_low = fourier_domain * mask
                 spatial_domain_low = np.fft.ifft2(np.fft.ifftshift(fourier_domain_low))
-                image_low[:,:,channel] = np.real(spatial_domain_low)
+                image_low[:,:,channel] = np.clip(np.real(spatial_domain_low), 0, 255)
 
                 low_magnitude, low_phase = complex_to_polar_real(fourier_domain_low)
                 low_analyze_images.extend([log_normalize(low_magnitude), low_phase])
@@ -69,7 +69,7 @@ class FrequencyAnalyzer():
                 # High frequency
                 fourier_domain_high = fourier_domain * (1 - mask)
                 spatial_domain_high = np.fft.ifft2(np.fft.ifftshift(fourier_domain_high))
-                image_high[:,:,channel] = np.real(spatial_domain_high)
+                image_high[:,:,channel] = np.clip(np.real(spatial_domain_high), 0, 255)
 
                 high_magnitude, high_phase = complex_to_polar_real(fourier_domain_high)
                 high_analyze_images.extend([log_normalize(high_magnitude), high_phase])

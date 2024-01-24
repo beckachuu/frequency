@@ -2,6 +2,8 @@ import itertools
 from logging import Logger
 from pathlib import Path
 
+from torch.utils.data import DataLoader
+
 try:
     import cupy as np
     print("Running cupy with GPU")
@@ -10,6 +12,7 @@ except ImportError:
     print("Running numpy with CPU")
 from matplotlib import pyplot as plt
 
+from dataset import ImageDataset
 from utility.format_utils import (complex_to_polar_real, crop_center,
                                   log_normalize, polar_real_to_complex,
                                   resize_auto_interpolation, to_cupy, to_numpy)
@@ -33,53 +36,56 @@ class FrequencyExp():
         self.plot_analyze = plot_analyze
 
 
-    def run_experiment(self, batch_ind, images, images_names, images_sizes) -> (list, list):
-        '''
-        Image shape must be HWC.
-        '''
+    def run_experiment(self, input_dir, image_extensions, batch_size):
+        dataset = ImageDataset(input_dir, image_extensions)
+        dataloader = DataLoader(dataset=dataset, num_workers=2, batch_size=batch_size, shuffle=True)
 
-        inner_radii = self.exp_values[0]
-        outer_radii = self.exp_values[1]
-        blur_strengths = self.exp_values[2]
-        ring_enhances = self.exp_values[3]
-        hann_intensities = self.exp_values[4]
+        self.logger.info(f'Input count: {len(dataset)}.')
 
-        square_h, square_w = images[0].shape[:2]
-        big_img = np.zeros((square_h * 3, square_w * 3))
-        big_h, big_w = big_img.shape[:2]
+        for batch_ind, (images, images_names, images_sizes) in enumerate(dataloader):
 
-        combinations = list(itertools.product(range(len(inner_radii)), blur_strengths, ring_enhances, hann_intensities))
+            inner_radii = self.exp_values[0]
+            outer_radii = self.exp_values[1]
+            blur_strengths = self.exp_values[2]
+            ring_enhances = self.exp_values[3]
+            hann_intensities = self.exp_values[4]
 
-        for combo in combinations:
-            half_size =  max(big_h, big_w) / 2
+            square_h, square_w = images[0].shape[:2]
+            big_img = np.zeros((square_h * 3, square_w * 3))
+            big_h, big_w = big_img.shape[:2]
 
-            inner_radius = int(inner_radii[combo[0]] * half_size)
-            outer_radius = int(outer_radii[combo[0]] * half_size)
-            blur_strength = self.standardize_blur_strength(combo[1] * half_size)
-            ring_enhance = combo[2]
-            hann_intensity = int(combo[3])
+            combinations = list(itertools.product(range(len(inner_radii)), blur_strengths, ring_enhances, hann_intensities))
 
-            self.logger.info(f"[BATCH {batch_ind}]: inner_radius = {inner_radius}, outer_radius = {outer_radius}, blur_strength = {blur_strength}, ring_intensity = {ring_enhance:.1f}, Hann_intensity = {hann_intensity}")
+            for combo in combinations:
+                half_size =  max(big_h, big_w) / 2
 
-            save_id = f'{inner_radius}-{outer_radius} {blur_strength} ring-{ring_enhance:.1f} Hann-{hann_intensity}'
-            save_dir = Path(self.exp_dir, save_id)
-            create_path_if_not_exists(save_dir)
+                inner_radius = int(inner_radii[combo[0]] * half_size)
+                outer_radius = int(outer_radii[combo[0]] * half_size)
+                blur_strength = self.standardize_blur_strength(combo[1] * half_size)
+                ring_enhance = combo[2]
+                hann_intensity = int(combo[3])
 
-            hann_mask, ring_mask = self.create_masks(big_h, big_w, inner_radius, outer_radius, blur_strength, 
-                                                     hann_intensity, ring_enhance)
+                self.logger.info(f"[BATCH {batch_ind}]: inner_radius = {inner_radius}, outer_radius = {outer_radius}, blur_strength = {blur_strength}, ring_intensity = {ring_enhance:.1f}, Hann_intensity = {hann_intensity}")
 
-            if self.check_continue(save_dir, images_names, ring_mask):
-                continue
+                save_id = f'{inner_radius}-{outer_radius} {blur_strength} ring-{ring_enhance:.1f} Hann-{hann_intensity}'
+                save_dir = Path(self.exp_dir, save_id)
+                create_path_if_not_exists(save_dir)
 
-            analyze_dir = Path(save_dir) / 'fourier_plots'
-            create_path_if_not_exists(analyze_dir)
+                hann_mask, ring_mask = self.create_masks(big_h, big_w, inner_radius, outer_radius, blur_strength, 
+                                                         hann_intensity, ring_enhance)
 
-            for i in range(images.shape[0]):
-                img_h = int(images_sizes[0][i])
-                img_w = int(images_sizes[1][i])
-                
-                self.amplify_true_HFC(images[i], big_img, ring_mask, hann_mask, images_names[i], 
-                                        square_h, square_w, img_h, img_w, save_dir, analyze_dir)
+                if self.check_continue(save_dir, images_names, ring_mask):
+                    continue
+
+                analyze_dir = Path(save_dir) / 'fourier_plots'
+                create_path_if_not_exists(analyze_dir)
+
+                for i in range(images.shape[0]):
+                    img_h = int(images_sizes[0][i])
+                    img_w = int(images_sizes[1][i])
+                    
+                    self.amplify_true_HFC(images[i], big_img, ring_mask, hann_mask, images_names[i], 
+                                            square_h, square_w, img_h, img_w, save_dir, analyze_dir)
 
 
     def create_masks(self, big_h, big_w, inner_radius, outer_radius, blur_strength, hann_intensity, ring_enhance):
