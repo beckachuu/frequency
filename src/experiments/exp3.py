@@ -1,5 +1,4 @@
 import itertools
-import os
 from logging import Logger
 from pathlib import Path
 
@@ -88,22 +87,23 @@ class FrequencyExp():
         ring_mask = create_smooth_ring_mask(big_h, big_w, inner_radius, outer_radius, blur_strength, ring_enhance)
         ring_mask = self.reduce_ring_mask(ring_mask, ring_enhance)
 
-        mask_plot_dir = Path(self.exp_dir, 'masks')
-        create_path_if_not_exists(mask_plot_dir)
-        plt.imsave(Path(mask_plot_dir, f'ring_mask {inner_radius}-{outer_radius} blur-{blur_strength} intense-{ring_enhance:.1f}.png'), to_numpy(ring_mask))
+        create_path_if_not_exists(self.exp_dir)
+        plt.imsave(Path(self.exp_dir, f'ring_mask {inner_radius}-{outer_radius} blur-{blur_strength} intense-{ring_enhance:.1f}.png'), to_numpy(ring_mask))
         if hann_intensity > 0:
-            plt.imsave(Path(mask_plot_dir, f'hann_mask {hann_intensity}.png'), to_numpy(hann_mask))
+            plt.imsave(Path(self.exp_dir, f'hann_mask {hann_intensity}.png'), to_numpy(hann_mask))
 
         return hann_mask, ring_mask
 
     
     def check_continue(self, save_dir, images_names, ring_mask):
+        if ring_mask.max() > 1:
+            raise ValueError('ring_enhance value must be in range [0, 1].')
+
         if not self.force_exp and check_files_exist([Path(save_dir, image_name) for image_name in images_names]):
             self.logger.info(f'Skipping: force_exp is False and this batch has saved results.')
             return True
         
-        if ring_mask.max() > 1:
-            raise ValueError('ring_enhance value must be in range [0, 1].')
+        return False
 
 
     def reduce_ring_mask(self, ring_mask: np.ndarray, ring_enhance):

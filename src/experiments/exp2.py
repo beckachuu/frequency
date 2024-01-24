@@ -76,11 +76,10 @@ class FrequencyExp():
             hann_mask = create_Hann_mask(big_h, big_w, hann_intensity)
             ring_mask = self.fill_ring_mask(ring_mask)
 
-            mask_plot_dir = Path(self.exp_dir, 'masks')
-            create_path_if_not_exists(mask_plot_dir)
-            plt.imsave(Path(mask_plot_dir, f'ring_mask blur-{blur_strength} intense-{ring_enhance:.1f}.png'), to_numpy(ring_mask))
+            create_path_if_not_exists(self.exp_dir)
+            plt.imsave(Path(self.exp_dir, f'ring_mask blur-{blur_strength} intense-{ring_enhance:.1f}.png'), to_numpy(ring_mask))
             if hann_intensity > 0:
-                plt.imsave(Path(mask_plot_dir, f'hann_mask {hann_intensity}.png'), to_numpy(hann_mask))
+                plt.imsave(Path(self.exp_dir, f'hann_mask {hann_intensity}.png'), to_numpy(hann_mask))
 
             analyze_dir = Path(save_dir) / 'fourier_plots'
             create_path_if_not_exists(analyze_dir)
@@ -151,7 +150,7 @@ class FrequencyExp():
                 spatial_magnitude, _ = complex_to_polar_real(exp_spatial_domain)
                 analyze_images.append(to_numpy(spatial_magnitude))
 
-            image_exp[:,:,channel] = np.real(exp_spatial_domain)
+            image_exp[:,:,channel] = np.clip(np.real(exp_spatial_domain), 0, 255)
 
         image_exp = resize_auto_interpolation(image_exp, img_h, img_w)
         plt.imsave(save_dir / image_name, to_numpy(image_exp.astype(np.uint8)))
