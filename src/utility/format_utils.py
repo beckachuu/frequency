@@ -2,6 +2,8 @@ import os
 import sys
 
 import cv2
+import torch
+
 try:
     import cupy as np
 except ImportError:
@@ -49,7 +51,7 @@ def crop_center(img, crop_h, crop_w):
         return img[starty:starty+crop_h, startx:startx+crop_w]
 
 
-def preprocess_image_from_url_to_1(img_path, resize_yolo=True):
+def preprocess_image_from_url_to_1HWC(img_path, resize_yolo=True):
     image, height, width = preprocess_image_from_url_to_255HWC(img_path, resize_yolo)
     image = image.astype(np.float32) / 255
     return image, height, width
@@ -65,11 +67,20 @@ def preprocess_image_from_url_to_255HWC(img_path, resize_yolo=True):
         image = resize_auto_interpolation(image)
     return image, height, width
 
-def HWC_to_CHW(image):
+def CHW_to_HWC(image: np.ndarray) -> np.ndarray:
+    return image.transpose((1, 2, 0))
+
+def HWC_to_CHW(image: np.ndarray) -> np.ndarray:
     return image.transpose((2, 0, 1))
 
 def BGR_to_RBG(image):
     return image[..., ::-1]
+
+def preprocess_image_from_url_to_torch_input(img_path, resize_yolo=True):
+    image, height, width = preprocess_image_from_url_to_255HWC(img_path, resize_yolo)
+    image = image.astype(np.float32) / 255
+    image = HWC_to_CHW(image)
+    return torch.from_numpy(image), height, width
 
 
 def complex_to_polar_real(complex_data):
@@ -108,8 +119,7 @@ def str_to_list_str(s: str) -> list:
     s: string contain multiple elements, separated by comma (may include space)
     '''
     s = s.replace(' ', '')
-    s_list = s.split(',')
-    return s_list
+    return s.split(',')
 
 
 def str_to_list_int(s: str) -> list:

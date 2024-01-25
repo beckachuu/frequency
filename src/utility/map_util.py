@@ -2,10 +2,8 @@
 Adapted from https://github.com/Cartucho/mAP
 """
 
-try:
-    import cupy as np
-except ImportError:
-    import numpy as np
+import numpy as np
+import torch
 
 from const.constants import coco_91_classes
 from utility.path_utils import get_filepaths_list, get_last_path_element
@@ -160,19 +158,21 @@ def load_gt_data(groundtruth: dict, image_id: int):
     return gt_data
 
 def get_gt_bbox(groundtruth: dict, image_id: int):
-    gt_data = []
+    '''
+        Return bboxes under this format: [x_min, y_min, x_max, y_max, score, label]
+    '''
+    gt_bbox = []
     
     for gt_dict in groundtruth:
         if gt_dict["image_id"] == image_id:
             bbox = gt_dict["bbox"].copy()
             bbox[2] += bbox[0]
             bbox[3] += bbox[1]
-            gt_data.append(bbox)
-            gt_data[-1].append(1)
-            gt_data[-1].append(int(gt_dict["category_id"]))
+            gt_bbox.append(bbox)
+            gt_bbox[-1].append(1)
+            gt_bbox[-1].append(int(gt_dict["category_id"]))
 
-    return np.array(gt_data)
-
+    return np.array(gt_bbox)
 
 
 def load_detect_data(detect_list):
@@ -200,6 +200,19 @@ def get_detect_bbox(detect_path):
         detect_data = [line.rstrip('\n') for line in detect_data]
         detect_data = [list(map(float, line.split())) for line in detect_data]
     return np.array(detect_data)
+
+
+def scale_bboxes(gt_bboxes: np.ndarray, source_size: tuple, dest_size: tuple):
+    width_scale = dest_size[0] / source_size[0]
+    height_scale = dest_size[1] / source_size[1]
+
+    for gt_bbox in gt_bboxes:
+        gt_bbox[0] = gt_bbox[0] * width_scale   # x_min
+        gt_bbox[1] = gt_bbox[1] * height_scale  # y_min
+        gt_bbox[2] = gt_bbox[2] * width_scale   # x_max
+        gt_bbox[3] = gt_bbox[3] * height_scale  # y_max
+
+    return gt_bboxes
 
 
 

@@ -25,7 +25,12 @@ def run_exp(logger):
 
     logger.info(f'[EXP {config.exp_number}]: Input path: {config.input_dir}. force_exp = {config.force_exp}.')
 
-    frequency_exp.run_experiment(config.input_dir, config.image_extensions, config.batch_size)
+    if config.exp_number == 4:
+        frequency_exp.run_experiment(config.train_dir, config.train_split, config.train_annos,
+                                     config.val_dir, config.val_split, config.val_annos,
+                                     config.image_extensions, config.save_labels_dir, config.batch_size, config.model_type)
+    else:
+        frequency_exp.run_experiment(config.input_dir, config.image_extensions, config.batch_size)
 
 
 

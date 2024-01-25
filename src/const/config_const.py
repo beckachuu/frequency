@@ -3,10 +3,19 @@ class GENERAL_TXT:
     GENERAL = "GENERAL"
 
     input_dir = "input_dir"
+
+    train_dir = "train_dir"
+    train_split = "train_split"
+    train_annos = "train_annos"
+    val_dir = "val_dir"
+    val_split = "val_split"
+    val_annos = "val_annos"
+    save_labels_dir = "save_labels_dir"
+
     image_extensions = "image_extensions"
     batch_size = "batch_size"
     plot_count = "plot_count"
-    groundtruth_json = "groundtruth_json"
+    input_annos = "input_annos"
     quiet = "quiet"
 
 

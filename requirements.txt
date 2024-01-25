@@ -1,5 +1,4 @@
 colorlog
-cupy
 h5py
 mapcalc
 matplotlib
