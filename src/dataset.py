@@ -97,7 +97,7 @@ class TrainDataset(udata.Dataset):
         labels = self.get_labels(gt_bbox)
 
         item = labels
-        item["img"] = torch.from_numpy(img)
+        item["img"] = img
         item["batch_idx"] = torch.zeros(len(labels["cls"]))
         
         return item

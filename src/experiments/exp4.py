@@ -105,7 +105,7 @@ class FrequencyExp():
 
                 loss_sum = loss_items.sum()
                 total_train_loss += (total_train_loss * batch_ind + loss_sum) / (batch_ind + 1)
-                self.logger.info(f"[Epoch {epoch}][{batch_ind}/{len(train_loader)}] train_loss: {loss_sum:.2f}")
+                self.logger.info(f"[Epoch {epoch}][{batch_ind}/{len(train_loader)}]: batch train loss = {loss_sum:.2f}")
 
             scheduler.step()
             train_time = time.time() - train_start_time
@@ -123,7 +123,7 @@ class FrequencyExp():
                     total_val_loss += (total_val_loss * batch_ind + loss_items.sum()) / (batch_ind + 1)
 
             val_time = time.time() - val_start_time
-            self.logger.info(f"[Validation] val_loss: {total_val_loss}")
+            self.logger.info(f"[Validation] Epoch val loss = {total_val_loss:.2f}")
 
             self.write_results(epoch, float(total_train_loss), float(total_val_loss), train_time, val_time)
             self.save_filter_model(self.filter_model, epoch, self.save_freq, total_val_loss, best_val_loss)
@@ -235,6 +235,7 @@ class FrequencyExp():
         
             for image_file in images_files:
                 image, height0, width0 = preprocess_image_from_url_to_torch_input(image_file)
+                image = image.unsqueeze(0)
                 image_name = get_last_path_element(image_file)
 
                 output = self.filter_model(image)
