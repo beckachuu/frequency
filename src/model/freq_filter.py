@@ -1,8 +1,10 @@
 import torch
 import torch.fft
 from matplotlib import pyplot as plt
+from matplotlib.ticker import FormatStrFormatter
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from utility.path_utils import get_last_path_element
+from const.constants import PLOT_FONT_SCALE, RGB_CHANNELS_NAMES
 
 
 class FrequencyDomainFilter(torch.nn.Module):
@@ -34,13 +36,30 @@ class FrequencyDomainFilter(torch.nn.Module):
         return x_out
 
 
-    def save_filter_img(self, save_dir):
-        fig, axs = plt.subplots(1, self.filter.shape[0])
-        for i in range(self.filter.shape[0]):
+    def save_filter_img(self, save_dir, dpi=100):
+        num_channels = self.filter.shape[0]
+        size = self.filter.shape[1]
+        font_size = size / PLOT_FONT_SCALE
+
+        plt.rcParams.update({'font.size': font_size})
+
+        fig_width = size * num_channels / dpi
+        fig_height = size / dpi
+        fig, axs = plt.subplots(1, num_channels, figsize=(fig_width, fig_height), dpi=dpi)
+
+        for i in range(num_channels):
             im = axs[i].imshow(self.filter[i].detach().cpu().numpy())
-            fig.colorbar(im, ax=axs[i])
+            if num_channels == len(RGB_CHANNELS_NAMES):
+                axs[i].set_title(RGB_CHANNELS_NAMES[i])
+            else:
+                axs[i].set_title(f'Channel {i}')
 
-        title = get_last_path_element(save_dir).split('.')[0]
-        plt.title(title)
+            divider = make_axes_locatable(axs[i])
+            cax = divider.append_axes('right', size='5%', pad=0.05)
+            cbar = fig.colorbar(im, cax=cax, format=FormatStrFormatter('%.1f'))
+            cbar.ax.tick_params(labelsize=font_size)  # Adjust font size here
 
+        plt.tight_layout()
         plt.savefig(save_dir)
+        plt.close(fig)
+

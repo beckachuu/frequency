@@ -84,7 +84,8 @@ def BGR_to_RBG(image):
 def preprocess_image_from_url_to_torch_input(img_path, resize_yolo=True):
     image, height, width = preprocess_image_from_url_to_1HWC(img_path, resize_yolo)
     image = HWC_to_CHW(image)
-    return torch.from_numpy(image), height, width
+    image = torch.from_numpy(image)
+    return image, height, width
 
 
 def complex_to_polar_real(complex_data):

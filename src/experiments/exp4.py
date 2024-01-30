@@ -212,7 +212,7 @@ class FrequencyExp():
         if total_val_loss < self.best_val_loss:
             self.best_val_loss = total_val_loss
             self.patience_counter = 0
-            torch.save(model.state_dict(), Path(self.checkpoints, f'epoch{epoch} (best).pth'))
+            torch.save(model.state_dict(), Path(self.checkpoints, f'best.pth'))
         else:
             self.patience_counter += 1
 
@@ -254,10 +254,10 @@ class FrequencyExp():
         
             for image_file in images_files:
                 image, height0, width0 = preprocess_image_from_url_to_torch_input(image_file)
-                image = image.unsqueeze(0)
+                image = image.unsqueeze(0).to(self.device)
                 image_name = get_last_path_element(image_file)
 
-                output = self.filter_model(image)
+                output = self.filter_model(image)[0]
                 output = resize_auto_interpolation(output, height0, width0)
                 output_normalized = (output - output.min()) / (output.max() - output.min())
                 plt.imsave(Path(save_dir, image_name), output_normalized)
