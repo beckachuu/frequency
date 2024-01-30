@@ -16,14 +16,19 @@ if module_path not in sys.path:
 from const.constants import epsilon, yolov5_input_size
 
 
-def resize_auto_interpolation(image: np.ndarray, height=yolov5_input_size, width=yolov5_input_size):
+def resize_auto_interpolation(image, height=yolov5_input_size, width=yolov5_input_size) -> np.ndarray:
     '''
-    @image: must be in the shape of [height, width, channel]
+        Return: HWC np.ndarray image 
     '''
     height = int(height)
     width = int(width)
 
-    image = to_numpy(image)
+    if isinstance(image, torch.Tensor):
+        image = image.detach().cpu().numpy()
+
+    # If image is CHW, convert to HWC
+    if image.shape[0] < image.shape[1] and image.shape[0] < image.shape[2]:
+        image = image.transpose(1, 2, 0)
 
     if image.shape[0] * image.shape[1] < height * width:
         image = cv2.resize(image, (width, height), interpolation=cv2.INTER_CUBIC)

@@ -1,10 +1,12 @@
 import csv
+import glob
 import os
 import time
 from logging import Logger
 from pathlib import Path
 
 import torch
+from matplotlib import pyplot as plt
 from torch.cuda.amp import GradScaler
 from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.data import DataLoader
@@ -15,7 +17,10 @@ from ultralytics.utils.loss import v8DetectionLoss
 
 from dataset import Hyperparameters, TrainDataset
 from model.freq_filter import FrequencyDomainFilter
-from utility.path_utils import create_path_if_not_exists
+from utility.format_utils import (preprocess_image_from_url_to_torch_input,
+                                  resize_auto_interpolation)
+from utility.path_utils import (create_path_if_not_exists, get_filepaths_list,
+                                get_last_path_element)
 from utility.train_util import find_last_checkpoint
 
 
@@ -86,7 +91,7 @@ class FrequencyExp():
                 self.filter_model.zero_grad()
                 optimizer.zero_grad()
 
-                input_img, gt_bbox = batch["img"].cuda(), batch
+                input_img, gt_bbox = batch["img"].to(self.device), batch
 
                 # with autocast():
                 filtered = self.filter_model(input_img)
@@ -126,6 +131,9 @@ class FrequencyExp():
             if self.patience_counter > self.patience:
                 print("Early stopping.")
                 break
+        
+        self.test_filter_model()
+
 
 
     def load_dataset(self, train_dir, train_split, train_annos, val_dir, val_split, val_annos,
@@ -155,10 +163,11 @@ class FrequencyExp():
 
     def load_filter_model(self, initial_epoch):
         filter_model = FrequencyDomainFilter(filter_size=(self.filter_size[0], self.filter_size[1]))
-        filter_model.cuda()
+        filter_model.to(self.device)
+        
         if initial_epoch > 0:
             self.logger.info(f"Resuming by loading epoch {initial_epoch}")
-            filter_model.load_state_dict(torch.load(Path(self.checkpoints, "net_epoch%d.pth" % initial_epoch)))
+            filter_model.load_state_dict(torch.load(Path(self.checkpoints, f"epoch{initial_epoch}.pth"), map_location=self.device))
         return filter_model
 
     def load_detect_model(self, model_type):
@@ -168,15 +177,14 @@ class FrequencyExp():
         detector = DetectionModel(cfg=f"yolo_cfg/v{version}/yolov{model_type}.yaml", nc=80, verbose=False)
         detector.args = Hyperparameters(7.5, 0.5, 1.5)
         detector.eval()
-        detector.cuda()
+        detector.to(self.device)
 
         if os.path.exists(f'yolov{model_type}.pt'):
-            detector.load(torch.load(f'yolov{model_type}.pt'))
+            detector.load(torch.load(f'yolov{model_type}.pt', map_location=self.device))
         else:
-            detector.load(torch.load(f'yolov{model_type}u.pt'))
+            detector.load(torch.load(f'yolov{model_type}u.pt', map_location=self.device))
 
-        # detector = torch.hub.load('ultralytics/yolov5', 'yolov5s')
-
+        # not training this detect model -> no grads required
         for param in detector.parameters():
             param.requires_grad = False
 
@@ -207,4 +215,31 @@ class FrequencyExp():
         else:
             writer.writerow([epoch, round(epoch_train_loss, 2), round(epoch_val_loss, 2), round(train_time, 2), round(val_time, 2)])
         f.close()
+
+
+    def test_filter_model(self):
+        self.logger.info('Generating test outputs...')
+
+        images_files = get_filepaths_list(self.input_dir, self.image_extensions)
+        pth_files = glob.glob(str(Path(self.checkpoints, '*.pth')))
+
+        for pth_file in pth_files:
+            self.logger.info(f'Testing with weights file: {pth_file}')
+
+            self.filter_model.load_state_dict(torch.load(pth_file, map_location=self.device))
+            self.filter_model.eval()
+
+            save_folder = get_last_path_element(pth_file).split('.')[0]
+            save_dir = Path(self.exp_dir, save_folder)
+            create_path_if_not_exists(save_dir)
+        
+            for image_file in images_files:
+                image, height0, width0 = preprocess_image_from_url_to_torch_input(image_file)
+                image_name = get_last_path_element(image_file)
+
+                output = self.filter_model(image)
+                output = resize_auto_interpolation(output, height0, width0)
+                output_normalized = (output - output.min()) / (output.max() - output.min())
+                plt.imsave(Path(save_dir, image_name), output_normalized)
+
 
