@@ -129,7 +129,7 @@ if __name__ == "__main__":
     logger = MyLogger.getLog(config.quiet)
 
     iou_list = np.arange(0.5, 0.95 + 0.05, 0.05)
-    gt_data = read_dict_from_json(config.groundtruth_json)["annotations"]
+    gt_data = read_dict_from_json(config.input_annos)["annotations"]
     
     exp_folders = get_exp_folders(config.exp_dir)
     exp_detect_folders = [Path(exp_folder, 'detects') for exp_folder in exp_folders]

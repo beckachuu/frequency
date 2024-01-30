@@ -9,8 +9,8 @@ except ImportError:
     import numpy as np
 
 from utility.bbox_util import get_yolo_bbox
-from utility.format_utils import (preprocess_image_from_url_to_1HWC,
-                                  preprocess_image_from_url_to_255HWC)
+from utility.format_utils import (preprocess_image_from_url_to_255HWC,
+                                  preprocess_image_from_url_to_torch_input)
 from utility.path_utils import (get_filepaths_list, get_last_path_element,
                                 read_dict_from_json)
 
@@ -87,8 +87,7 @@ class TrainDataset(udata.Dataset):
 
 
     def __getitem__(self, index: int):
-        img, height0, width0 = preprocess_image_from_url_to_1HWC(self.filepaths[index], resize_yolo=True)
-        img = img.transpose(2,0,1)
+        img, height0, width0 = preprocess_image_from_url_to_torch_input(self.filepaths[index])
 
         image_name = get_last_path_element(self.filepaths[index]).split('.')[0]
         image_id = int(image_name)

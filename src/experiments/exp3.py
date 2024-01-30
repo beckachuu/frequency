@@ -23,24 +23,27 @@ from utility.plot_util import plot_images
 
 
 class FrequencyExp():
-    def __init__(self, logger:Logger, exp_dir: str, exp_values: list, force_exp: bool, plot_analyze: bool):
+    def __init__(self, logger:Logger, input_dir, image_extensions, batch_size, exp_dir: str, exp_values: list, 
+                 force_exp: bool, plot_analyze: bool):
         self.logger = logger
 
+        self.input_dir = input_dir
+        self.image_extensions = image_extensions
+        self.batch_size = batch_size
         self.exp_dir = exp_dir
-
-        self.ring_path = ''
-        self.soft_ring_path = ''
-
         self.exp_values = exp_values
         self.force_exp = force_exp
         self.plot_analyze = plot_analyze
 
+        self.ring_path = ''
+        self.soft_ring_path = ''
 
-    def run_experiment(self, input_dir, image_extensions, batch_size):
-        dataset = ImageDataset(input_dir, image_extensions)
-        dataloader = DataLoader(dataset=dataset, num_workers=2, batch_size=batch_size, shuffle=True)
 
-        self.logger.info(f'Input count: {len(dataset)}.')
+    def run_experiment(self):
+        dataset = ImageDataset(self.input_dir, self.image_extensions)
+        dataloader = DataLoader(dataset=dataset, num_workers=2, batch_size=self.batch_size, shuffle=True)
+
+        self.logger.info(f'Input path: {self.input_dir} (images count: {len(dataset)}).')
 
         for batch_ind, (images, images_names, images_sizes) in enumerate(dataloader):
 

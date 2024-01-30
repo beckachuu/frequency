@@ -77,8 +77,7 @@ def BGR_to_RBG(image):
     return image[..., ::-1]
 
 def preprocess_image_from_url_to_torch_input(img_path, resize_yolo=True):
-    image, height, width = preprocess_image_from_url_to_255HWC(img_path, resize_yolo)
-    image = image.astype(np.float32) / 255
+    image, height, width = preprocess_image_from_url_to_1HWC(img_path, resize_yolo)
     image = HWC_to_CHW(image)
     return torch.from_numpy(image), height, width
 

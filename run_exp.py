@@ -13,7 +13,8 @@ from utility.mylogger import MyLogger
 def get_experiment(exp_number):
     try:
         experiment = import_module(f"experiments.exp{exp_number}")
-        frequencyExp = experiment.FrequencyExp(logger, config.exp_dir, config.exp_value_set[exp_number-1], 
+        frequencyExp = experiment.FrequencyExp(logger, config.input_dir, config.image_extensions, config.batch_size,
+                                               config.exp_dir, config.exp_value_set[exp_number-1], 
                                                config.force_exp, config.plot_analyze)
         return frequencyExp
     except ModuleNotFoundError:
@@ -23,14 +24,14 @@ def get_experiment(exp_number):
 def run_exp(logger):
     frequency_exp = get_experiment(config.exp_number)
 
-    logger.info(f'[EXP {config.exp_number}]: Input path: {config.input_dir}. force_exp = {config.force_exp}.')
+    logger.info(f'[EXP {config.exp_number}]: force_exp = {config.force_exp}, plot_analyze = {config.plot_analyze}')
 
     if config.exp_number == 4:
         frequency_exp.run_experiment(config.train_dir, config.train_split, config.train_annos,
                                      config.val_dir, config.val_split, config.val_annos,
-                                     config.image_extensions, config.save_labels_dir, config.batch_size, config.model_type)
+                                     config.save_labels_dir, config.model_type)
     else:
-        frequency_exp.run_experiment(config.input_dir, config.image_extensions, config.batch_size)
+        frequency_exp.run_experiment()
 
 
 

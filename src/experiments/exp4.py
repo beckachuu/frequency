@@ -20,18 +20,22 @@ from utility.train_util import find_last_checkpoint
 
 
 class FrequencyExp():
-    def __init__(self, logger:Logger, exp_dir: str, exp_values: list, force_exp: bool, plot_analyze: bool):
+    def __init__(self, logger:Logger, input_dir, image_extensions, batch_size, exp_dir: str, exp_values: list, 
+                 force_exp: bool, plot_analyze: bool):
         self.logger = logger
 
+        self.input_dir = input_dir
+        self.image_extensions = image_extensions
+        self.batch_size = batch_size
         self.exp_dir = exp_dir
+        self.exp_values = exp_values
+        self.force_exp = force_exp
+        self.plot_analyze = plot_analyze
+
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.checkpoints = Path(self.exp_dir, f"checkpoints")
         create_path_if_not_exists(self.checkpoints)
         self.log_dir = Path(self.exp_dir, f"logs.csv")
-
-        self.exp_values = exp_values
-
-        self.force_exp = force_exp
-        self.plot_analyze = plot_analyze
 
         # Training stuff
         self.epochs = self.exp_values[0]
@@ -45,13 +49,13 @@ class FrequencyExp():
 
 
     def run_experiment(self, train_dir, train_split, train_annos, val_dir, val_split, val_annos,
-                       image_extensions, save_labels_dir, batch_size, detect_model_type):
+                       save_labels_dir, detect_model_type):
         # square_h, square_w = images[0].shape[:2]
         # big_img = np.zeros((square_h * 3, square_w * 3))
         # big_h, big_w = big_img.shape[:2]
 
         train_loader, val_loader = self.load_dataset(train_dir, train_split, train_annos, val_dir, val_split, val_annos,
-                                                     image_extensions, save_labels_dir, batch_size)
+                                                     self.image_extensions, save_labels_dir, self.batch_size)
 
         if self.force_exp:
             initial_epoch = 0
@@ -62,7 +66,6 @@ class FrequencyExp():
         detect_model = self.load_detect_model(detect_model_type)
 
         criterion = v8DetectionLoss(detect_model)
-        # criterion.cuda()
 
         # Optimizer
         optimizer = torch.optim.Adam(self.filter_model.parameters(), lr=self.lr)
@@ -71,10 +74,10 @@ class FrequencyExp():
 
         best_val_loss = float("inf")
 
-        self.write_results("epoch", "train_loss", "val_loss", "time (sec)")
+        self.write_results("epoch", "train_loss", "val_loss", "train time (sec)", "val time (sec)")
 
         for epoch in range(initial_epoch, self.epochs + 1):
-            current_time = time.time()
+            train_start_time = time.time()
             total_train_loss = 0
             total_val_loss = 0
 
@@ -100,8 +103,10 @@ class FrequencyExp():
                 self.logger.info(f"[Epoch {epoch}][{batch_ind}/{len(train_loader)}] train_loss: {loss_sum:.2f}")
 
             scheduler.step()
+            train_time = time.time() - train_start_time
 
             # Validation
+            val_start_time = time.time()
             with torch.no_grad():
                 self.filter_model.eval()
                 for batch_ind, batch in enumerate(val_loader):
@@ -112,12 +117,11 @@ class FrequencyExp():
                     _, loss_items = criterion(preds, gt_bbox)
                     total_val_loss += (total_val_loss * batch_ind + loss_items.sum()) / (batch_ind + 1)
 
-            self.write_results(epoch, round(float(total_train_loss), 2), round(float(total_val_loss), 2), round(current_time, 2))
-            current_time = time.time()
-
+            val_time = time.time() - val_start_time
             self.logger.info(f"[Validation] val_loss: {total_val_loss}")
 
-            self.save_model(self.filter_model, epoch, self.save_freq, total_val_loss, best_val_loss)
+            self.write_results(epoch, float(total_train_loss), float(total_val_loss), train_time, val_time)
+            self.save_filter_model(self.filter_model, epoch, self.save_freq, total_val_loss, best_val_loss)
 
             if self.patience_counter > self.patience:
                 print("Early stopping.")
@@ -153,7 +157,7 @@ class FrequencyExp():
         filter_model = FrequencyDomainFilter(filter_size=(self.filter_size[0], self.filter_size[1]))
         filter_model.cuda()
         if initial_epoch > 0:
-            self.logger.info("Resuming by loading epoch %d" % initial_epoch)
+            self.logger.info(f"Resuming by loading epoch {initial_epoch}")
             filter_model.load_state_dict(torch.load(Path(self.checkpoints, "net_epoch%d.pth" % initial_epoch)))
         return filter_model
 
@@ -179,27 +183,28 @@ class FrequencyExp():
         return detector
 
 
-    def save_model(self, model, epoch, save_freq, total_val_loss, best_val_loss):
+
+    def save_filter_model(self, model, epoch, save_freq, total_val_loss, best_val_loss):
         # save best trained model
         if total_val_loss < best_val_loss:
             best_val_loss = total_val_loss
             self.patience_counter = 0
-            torch.save(model.state_dict(), Path(self.checkpoints, 'best_val.pth'))
+            torch.save(model.state_dict(), Path(self.checkpoints, f'epoch{epoch} (best).pth'))
         else:
             self.patience_counter += 1
 
         # save model frequently
         if save_freq > 0 and epoch % save_freq == 0:
             self.filter_model.save_filter_img(Path(self.exp_dir, f'filter_epoch{epoch}.png'))
-            torch.save(model.state_dict(), Path(self.checkpoints, 'net_epoch%d.pth' % (epoch)))
+            torch.save(model.state_dict(), Path(self.checkpoints, 'epoch%d.pth' % (epoch)))
 
 
-    def write_results(self, epoch, epoch_train_loss, epoch_val_loss, current_time):
+    def write_results(self, epoch, epoch_train_loss: float, epoch_val_loss: float, train_time, val_time):
         f = open(self.log_dir, "a")
         writer = csv.writer(f)
-        if isinstance(current_time, str):
-            writer.writerow([epoch, epoch_train_loss, epoch_val_loss, current_time])
+        if isinstance(epoch, str):
+            writer.writerow([epoch, epoch_train_loss, epoch_val_loss, train_time, val_time])
         else:
-            writer.writerow([epoch, epoch_train_loss, epoch_val_loss, time.time() - current_time])
+            writer.writerow([epoch, round(epoch_train_loss, 2), round(epoch_val_loss, 2), round(train_time, 2), round(val_time, 2)])
         f.close()
 
