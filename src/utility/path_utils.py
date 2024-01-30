@@ -82,6 +82,10 @@ def get_filepaths_list(folder_path: str, extensions: list) -> list:
 
 
 def count_filepaths(folder_path: str, extensions: list = None) -> int:
+    if not os.path.exists(folder_path):
+        print(f"Error: Folder {folder_path} does not exist.")
+        return 0
+
     if not extensions:
         return len([name for name in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, name))])
     else:
@@ -114,13 +118,15 @@ def get_child_folders(path, level=1):
                 folders.extend(get_child_folders(os.path.join(path, name), level - 1))
         return folders
 
-def get_exp_folders(exp_dir) -> list:
+def get_exp_folders(exp_dir, exclude=["checkpoints"]) -> list:
     '''
         Get result folders of an exp directory
         Return 1st level child folders (or parent folder if no child found)
     '''
     exp_folders = get_child_folders(exp_dir, 1)
+    exp_folders = list(filter(lambda folder: not any(word in folder for word in exclude), exp_folders))
     if len(exp_folders) == 0:
         exp_folders = [exp_dir]
 
     return exp_folders
+
