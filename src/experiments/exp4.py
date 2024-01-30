@@ -51,6 +51,7 @@ class FrequencyExp():
         self.save_freq = self.exp_values[3]
 
         self.filter_model = None
+        self.best_val_loss = float("inf")
 
 
     def run_experiment(self, train_dir, train_split, train_annos, val_dir, val_split, val_annos,
@@ -77,14 +78,15 @@ class FrequencyExp():
         scheduler = MultiStepLR(optimizer, milestones=[20, 40, 60], gamma=0.2)
         scaler = GradScaler()
 
-        best_val_loss = float("inf")
 
-        self.write_results("epoch", "train_loss", "val_loss", "train time (sec)", "val time (sec)")
+        self.write_results("epoch", "train box_loss", "train cls_loss", "train dfl_loss", 
+                           "val box_loss", "val cls_loss", "val dfl_loss", 
+                           "train time (sec)", "val time (sec)")
 
         for epoch in range(initial_epoch, self.epochs + 1):
             train_start_time = time.time()
-            total_train_loss = 0
-            total_val_loss = 0
+            losses = {"train": {"box": 0, "cls": 0, "dfl": 0}, 
+                    "val": {"box": 0, "cls": 0, "dfl": 0}}
 
             for batch_ind, batch in enumerate(train_loader):
                 self.filter_model.train()
@@ -103,9 +105,15 @@ class FrequencyExp():
                 scaler.step(optimizer)
                 scaler.update()
 
-                loss_sum = loss_items.sum()
-                total_train_loss += (total_train_loss * batch_ind + loss_sum) / (batch_ind + 1)
-                self.logger.info(f"[Epoch {epoch}][{batch_ind}/{len(train_loader)}]: batch train loss = {loss_sum:.2f}")
+                box, cls, dfl = [float(x) for x in loss_items]
+                losses["train"]["box"] = (losses["train"]["box"] * batch_ind + box) / (batch_ind + 1)
+                losses["train"]["cls"] = (losses["train"]["cls"] * batch_ind + cls) / (batch_ind + 1)
+                losses["train"]["dfl"] = (losses["train"]["dfl"] * batch_ind + dfl) / (batch_ind + 1)
+                self.logger.info(f"[Epoch {epoch}][{batch_ind}/{len(train_loader)}]: " + 
+                                 f"box_loss = {box:.2f}, cls_loss = {cls:.2f}, dfl_loss = {dfl:.2f}")
+            
+            self.logger.info(f"[TRAIN LOSS - epoch {epoch}]: box_loss = {losses['train']['box']:.2f}, " +
+                             f"cls_loss = {losses['train']['cls']:.2f}, dfl_loss = {losses['train']['dfl']:.2f}")
 
             scheduler.step()
             train_time = time.time() - train_start_time
@@ -115,18 +123,25 @@ class FrequencyExp():
             with torch.no_grad():
                 self.filter_model.eval()
                 for batch_ind, batch in enumerate(val_loader):
-                    input_img, gt_bbox = batch["img"].cuda(), batch
+                    input_img, gt_bbox = batch["img"].to(self.device), batch
 
                     filtered = self.filter_model(input_img)
                     preds = detect_model(filtered)
                     _, loss_items = criterion(preds, gt_bbox)
-                    total_val_loss += (total_val_loss * batch_ind + loss_items.sum()) / (batch_ind + 1)
+
+                    box, cls, dfl = [float(x) for x in loss_items]
+                    losses["val"]["box"] = (losses["val"]["box"] * batch_ind + box) / (batch_ind + 1)
+                    losses["val"]["cls"] = (losses["val"]["cls"] * batch_ind + cls) / (batch_ind + 1)
+                    losses["val"]["dfl"] = (losses["val"]["dfl"] * batch_ind + dfl) / (batch_ind + 1)
 
             val_time = time.time() - val_start_time
-            self.logger.info(f"[Validation] Epoch val loss = {total_val_loss:.2f}")
+            self.logger.info(f"[VAL LOSS - epoch {epoch}]: box_loss = {losses['val']['box']:.2f}, " +
+                             f"cls_loss = {losses['val']['cls']:.2f}, dfl_loss = {losses['val']['dfl']:.2f}")
 
-            self.write_results(epoch, float(total_train_loss), float(total_val_loss), train_time, val_time)
-            self.save_filter_model(self.filter_model, epoch, self.save_freq, total_val_loss, best_val_loss)
+            self.write_results(epoch, losses["train"]["box"], losses["train"]["cls"], losses["train"]["dfl"],
+                               losses["val"]["box"], losses["val"]["cls"], losses["val"]["dfl"],
+                               train_time, val_time)
+            self.save_filter_model(self.filter_model, epoch, self.save_freq, losses["val"]["box"]+losses["val"]["cls"]+losses["val"]["dfl"])
 
             if self.patience_counter > self.patience:
                 print("Early stopping.")
@@ -192,10 +207,10 @@ class FrequencyExp():
 
 
 
-    def save_filter_model(self, model, epoch, save_freq, total_val_loss, best_val_loss):
+    def save_filter_model(self, model, epoch, save_freq, total_val_loss):
         # save best trained model
-        if total_val_loss < best_val_loss:
-            best_val_loss = total_val_loss
+        if total_val_loss < self.best_val_loss:
+            self.best_val_loss = total_val_loss
             self.patience_counter = 0
             torch.save(model.state_dict(), Path(self.checkpoints, f'epoch{epoch} (best).pth'))
         else:
@@ -207,13 +222,17 @@ class FrequencyExp():
             torch.save(model.state_dict(), Path(self.checkpoints, 'epoch%d.pth' % (epoch)))
 
 
-    def write_results(self, epoch, epoch_train_loss: float, epoch_val_loss: float, train_time, val_time):
+    def write_results(self, epoch, train_box_loss: float, train_cls_loss: float, train_dfl_loss: float, 
+                      val_box_loss: float, val_cls_loss: float, val_dfl_loss: float, train_time, val_time):
         f = open(self.log_dir, "a")
         writer = csv.writer(f)
         if isinstance(epoch, str):
-            writer.writerow([epoch, epoch_train_loss, epoch_val_loss, train_time, val_time])
+            writer.writerow([epoch, train_box_loss, train_cls_loss, train_dfl_loss, 
+                             val_box_loss, val_cls_loss, val_dfl_loss, train_time, val_time])
         else:
-            writer.writerow([epoch, round(epoch_train_loss, 2), round(epoch_val_loss, 2), round(train_time, 2), round(val_time, 2)])
+            writer.writerow([epoch, round(train_box_loss, 2), round(train_cls_loss, 2), round(train_cls_loss, 2),
+                             round(val_box_loss, 2), round(val_cls_loss, 2), round(val_dfl_loss, 2),
+                             round(train_time, 2), round(val_time, 2)])
         f.close()
 
 
