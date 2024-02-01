@@ -1,5 +1,4 @@
 import csv
-import glob
 import os
 import time
 from logging import Logger
@@ -10,7 +9,6 @@ from matplotlib import pyplot as plt
 from torch.cuda.amp import GradScaler
 from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.data import DataLoader
-from tqdm import tqdm
 from ultralytics import YOLO
 from ultralytics.nn.tasks import DetectionModel
 from ultralytics.utils.loss import v8DetectionLoss
@@ -110,10 +108,10 @@ class FrequencyExp():
                 losses["train"]["cls"] = (losses["train"]["cls"] * batch_ind + cls) / (batch_ind + 1)
                 losses["train"]["dfl"] = (losses["train"]["dfl"] * batch_ind + dfl) / (batch_ind + 1)
                 self.logger.info(f"[Epoch {epoch}][{batch_ind}/{len(train_loader)}]: " + 
-                                 f"box_loss = {box:.2f}, cls_loss = {cls:.2f}, dfl_loss = {dfl:.2f}")
+                                 f"box_loss = {box:.3f}, cls_loss = {cls:.3f}, dfl_loss = {dfl:.3f}")
             
-            self.logger.info(f"[TRAIN LOSS - epoch {epoch}]: box_loss = {losses['train']['box']:.2f}, " +
-                             f"cls_loss = {losses['train']['cls']:.2f}, dfl_loss = {losses['train']['dfl']:.2f}")
+            self.logger.info(f"[TRAIN LOSS - epoch {epoch}]: box_loss = {losses['train']['box']:.3f}, " +
+                             f"cls_loss = {losses['train']['cls']:.3f}, dfl_loss = {losses['train']['dfl']:.3f}")
 
             scheduler.step()
             train_time = time.time() - train_start_time
@@ -135,8 +133,8 @@ class FrequencyExp():
                     losses["val"]["dfl"] = (losses["val"]["dfl"] * batch_ind + dfl) / (batch_ind + 1)
 
             val_time = time.time() - val_start_time
-            self.logger.info(f"[VAL LOSS - epoch {epoch}]: box_loss = {losses['val']['box']:.2f}, " +
-                             f"cls_loss = {losses['val']['cls']:.2f}, dfl_loss = {losses['val']['dfl']:.2f}")
+            self.logger.info(f"[VAL LOSS - epoch {epoch}]: box_loss = {losses['val']['box']:.3f}, " +
+                             f"cls_loss = {losses['val']['cls']:.3f}, dfl_loss = {losses['val']['dfl']:.3f}")
 
             self.write_results(epoch, losses["train"]["box"], losses["train"]["cls"], losses["train"]["dfl"],
                                losses["val"]["box"], losses["val"]["cls"], losses["val"]["dfl"],
@@ -212,7 +210,7 @@ class FrequencyExp():
         if total_val_loss < self.best_val_loss:
             self.best_val_loss = total_val_loss
             self.patience_counter = 0
-            torch.save(model.state_dict(), Path(self.checkpoints, f'best.pth'))
+            torch.save(model.state_dict(), Path(self.checkpoints, f'val_best.pth'))
         else:
             self.patience_counter += 1
 
@@ -230,9 +228,8 @@ class FrequencyExp():
             writer.writerow([epoch, train_box_loss, train_cls_loss, train_dfl_loss, 
                              val_box_loss, val_cls_loss, val_dfl_loss, train_time, val_time])
         else:
-            writer.writerow([epoch, round(train_box_loss, 2), round(train_cls_loss, 2), round(train_cls_loss, 2),
-                             round(val_box_loss, 2), round(val_cls_loss, 2), round(val_dfl_loss, 2),
-                             round(train_time, 2), round(val_time, 2)])
+            writer.writerow([epoch, train_box_loss, train_cls_loss,train_cls_loss,
+                             val_box_loss, val_cls_loss, val_dfl_loss, train_time, val_time])
         f.close()
 
 
@@ -240,7 +237,7 @@ class FrequencyExp():
         self.logger.info('Generating test outputs...')
 
         images_files = get_filepaths_list(self.input_dir, self.image_extensions)
-        pth_files = glob.glob(str(Path(self.checkpoints, '*.pth')))
+        pth_files = get_filepaths_list(self.checkpoints, ['pth'])
 
         for pth_file in pth_files:
             self.logger.info(f'Testing with weights file: {pth_file}')

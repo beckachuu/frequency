@@ -2,6 +2,7 @@ colorlog
 h5py
 mapcalc
 matplotlib
+natsort
 numpy
 scikit-image
 torch

@@ -4,6 +4,8 @@ import os
 import sys
 from datetime import datetime
 
+from natsort import natsorted, ns
+
 
 def get_project_root():
     return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -108,15 +110,19 @@ def get_last_path_element(path: str, n = 1) -> list:
     return elements[-n:]
 
 
-def get_child_folders(path, level=1):
+def get_child_folders(path, level=1, nat_sort=True):
     if level == 1:
-        return [os.path.join(path, name) for name in os.listdir(path) if os.path.isdir(os.path.join(path, name))]
+        folders = [os.path.join(path, name) for name in os.listdir(path) if os.path.isdir(os.path.join(path, name))]
     else:
         folders = []
         for name in os.listdir(path):
             if os.path.isdir(os.path.join(path, name)):
-                folders.extend(get_child_folders(os.path.join(path, name), level - 1))
-        return folders
+                folders.extend(get_child_folders(os.path.join(path, name), level - 1, False))
+
+    if nat_sort:
+        folders = natsorted(folders, alg=ns.IGNORECASE)
+    
+    return folders
 
 def get_exp_folders(exp_dir, exclude=["checkpoints"]) -> list:
     '''
