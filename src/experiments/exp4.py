@@ -228,7 +228,7 @@ class FrequencyExp():
             writer.writerow([epoch, train_box_loss, train_cls_loss, train_dfl_loss, 
                              val_box_loss, val_cls_loss, val_dfl_loss, train_time, val_time])
         else:
-            writer.writerow([epoch, train_box_loss, train_cls_loss,train_cls_loss,
+            writer.writerow([epoch, train_box_loss, train_cls_loss, train_dfl_loss,
                              val_box_loss, val_cls_loss, val_dfl_loss, train_time, val_time])
         f.close()
 
