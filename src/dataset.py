@@ -46,7 +46,7 @@ class PathDataset(udata.Dataset):
         return self.filepaths[index]
 
 
-class Hyperparameters:
+class YoloHyperparameters:
     def __init__(self, box, cls, dfl):
         self.box = box # (float) box loss gain
         self.cls = cls # (float) cls loss gain (scale with pixels)

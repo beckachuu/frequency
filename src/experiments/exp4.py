@@ -7,13 +7,13 @@ from pathlib import Path
 import torch
 from matplotlib import pyplot as plt
 from torch.cuda.amp import GradScaler
-from torch.optim.lr_scheduler import MultiStepLR
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader
 from ultralytics import YOLO
 from ultralytics.nn.tasks import DetectionModel
 from ultralytics.utils.loss import v8DetectionLoss
 
-from dataset import Hyperparameters, TrainDataset
+from dataset import YoloHyperparameters, TrainDataset
 from model.freq_filter import FrequencyDomainFilter
 from utility.format_utils import (preprocess_image_from_url_to_torch_input,
                                   resize_auto_interpolation)
@@ -35,68 +35,69 @@ class FrequencyExp():
         self.force_exp = force_exp
         self.plot_analyze = plot_analyze
 
+        # Training stuff
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.checkpoints = Path(self.exp_dir, f"checkpoints")
         create_path_if_not_exists(self.checkpoints)
         self.log_dir = Path(self.exp_dir, f"logs.csv")
 
-        # Training stuff
-        self.epochs = self.exp_values[0]
-        self.filter_size = (self.exp_values[1], self.exp_values[1])
-        self.patience_counter = 0
-        self.patience = self.exp_values[2]
-        self.lr = 1e-3
-        self.save_freq = self.exp_values[3]
-
-        self.filter_model = None
-        self.best_val_loss = float("inf")
-
 
     def run_experiment(self, train_dir, train_split, train_annos, val_dir, val_split, val_annos,
                        save_labels_dir, detect_model_type):
-        # square_h, square_w = images[0].shape[:2]
-        # big_img = np.zeros((square_h * 3, square_w * 3))
-        # big_h, big_w = big_img.shape[:2]
 
-        train_loader, val_loader = self.load_dataset(train_dir, train_split, train_annos, val_dir, val_split, val_annos,
-                                                     self.image_extensions, save_labels_dir, self.batch_size)
+        # Exp values
+        epochs = int(self.exp_values[0])
+        filter_size = (int(self.exp_values[1]), int(self.exp_values[1]))
+        patience = int(self.exp_values[2])
+        save_freq = int(self.exp_values[3])
+        init_lr = self.exp_values[4]
+        lr_patience = int(self.exp_values[5])
+        min_lr = self.exp_values[6]
+        box_gain = self.exp_values[7]
+        cls_gain = self.exp_values[8]
+        dfl_gain = self.exp_values[9]
+
+        patience_counter = 0
+        best_val_loss = float("inf")
 
         if self.force_exp:
             initial_epoch = 0
         else:
             initial_epoch = find_last_checkpoint(save_dir=self.checkpoints)
-        self.filter_model = self.load_filter_model(initial_epoch)
-        
-        detect_model = self.load_detect_model(detect_model_type)
 
+        # Data
+        train_loader, val_loader = self.load_dataset(train_dir, train_split, train_annos, val_dir, val_split, val_annos,
+                                                     self.image_extensions, save_labels_dir, self.batch_size)
+
+        # Load models
+        filter_model = self.load_filter_model(initial_epoch, filter_size)
+        detect_model = self.load_detect_model(detect_model_type, box_gain, cls_gain, dfl_gain)
+
+        # Loss
         criterion = v8DetectionLoss(detect_model)
 
-        # Optimizer
-        optimizer = torch.optim.Adam(self.filter_model.parameters(), lr=self.lr)
-        scheduler = MultiStepLR(optimizer, milestones=[20, 40, 60], gamma=0.2)
+        # Optimizer, learning rate scheduler and grad scaler
+        optimizer = torch.optim.Adam(filter_model.parameters(), lr=init_lr)
+        scheduler = ReduceLROnPlateau(optimizer=optimizer, patience=lr_patience, min_lr=min_lr, verbose=True)
         scaler = GradScaler()
-
 
         self.write_results("epoch", "train box_loss", "train cls_loss", "train dfl_loss", 
                            "val box_loss", "val cls_loss", "val dfl_loss", 
                            "train time (sec)", "val time (sec)")
 
-        for epoch in range(initial_epoch, self.epochs + 1):
+        for epoch in range(initial_epoch+1, epochs + 1):
             train_start_time = time.time()
             losses = {"train": {"box": 0, "cls": 0, "dfl": 0}, 
                     "val": {"box": 0, "cls": 0, "dfl": 0}}
 
             for batch_ind, batch in enumerate(train_loader):
-                self.filter_model.train()
-                self.filter_model.zero_grad()
+                filter_model.train()
                 optimizer.zero_grad()
 
                 input_img, gt_bbox = batch["img"].to(self.device), batch
 
-                # with autocast():
-                filtered = self.filter_model(input_img)
+                filtered = filter_model(input_img)
                 preds = detect_model(filtered)
-
                 loss, loss_items = criterion(preds, gt_bbox)
 
                 scaler.scale(loss).backward()
@@ -113,24 +114,25 @@ class FrequencyExp():
             self.logger.info(f"[TRAIN LOSS - epoch {epoch}]: box_loss = {losses['train']['box']:.3f}, " +
                              f"cls_loss = {losses['train']['cls']:.3f}, dfl_loss = {losses['train']['dfl']:.3f}")
 
-            scheduler.step()
             train_time = time.time() - train_start_time
 
             # Validation
             val_start_time = time.time()
             with torch.no_grad():
-                self.filter_model.eval()
+                filter_model.eval()
                 for batch_ind, batch in enumerate(val_loader):
                     input_img, gt_bbox = batch["img"].to(self.device), batch
 
-                    filtered = self.filter_model(input_img)
+                    filtered = filter_model(input_img)
                     preds = detect_model(filtered)
-                    _, loss_items = criterion(preds, gt_bbox)
+                    val_loss, loss_items = criterion(preds, gt_bbox)
 
                     box, cls, dfl = [float(x) for x in loss_items]
                     losses["val"]["box"] = (losses["val"]["box"] * batch_ind + box) / (batch_ind + 1)
                     losses["val"]["cls"] = (losses["val"]["cls"] * batch_ind + cls) / (batch_ind + 1)
                     losses["val"]["dfl"] = (losses["val"]["dfl"] * batch_ind + dfl) / (batch_ind + 1)
+            
+            scheduler.step(val_loss)
 
             val_time = time.time() - val_start_time
             self.logger.info(f"[VAL LOSS - epoch {epoch}]: box_loss = {losses['val']['box']:.3f}, " +
@@ -139,13 +141,14 @@ class FrequencyExp():
             self.write_results(epoch, losses["train"]["box"], losses["train"]["cls"], losses["train"]["dfl"],
                                losses["val"]["box"], losses["val"]["cls"], losses["val"]["dfl"],
                                train_time, val_time)
-            self.save_filter_model(self.filter_model, epoch, self.save_freq, losses["val"]["box"]+losses["val"]["cls"]+losses["val"]["dfl"])
+            patience_counter, best_val_loss = self.save_filter_model(filter_model, epoch, patience_counter, save_freq, 
+                                   losses["val"]["box"]+losses["val"]["cls"]+losses["val"]["dfl"], best_val_loss)
 
-            if self.patience_counter > self.patience:
+            if patience_counter > patience:
                 print("Early stopping.")
                 break
         
-        self.test_filter_model()
+        self.test_filter_model(filter_model)
 
 
 
@@ -174,8 +177,8 @@ class FrequencyExp():
         return train_loader, val_loader
     
 
-    def load_filter_model(self, initial_epoch):
-        filter_model = FrequencyDomainFilter(filter_size=(self.filter_size[0], self.filter_size[1]))
+    def load_filter_model(self, initial_epoch, filter_size):
+        filter_model = FrequencyDomainFilter(filter_size)
         filter_model.to(self.device)
         
         if initial_epoch > 0:
@@ -183,12 +186,12 @@ class FrequencyExp():
             filter_model.load_state_dict(torch.load(Path(self.checkpoints, f"epoch{initial_epoch}.pth"), map_location=self.device))
         return filter_model
 
-    def load_detect_model(self, model_type):
+    def load_detect_model(self, model_type, box_gain, cls_gain, dfl_gain):
         version = model_type[0]
 
         detector = YOLO(f"yolov{model_type}.pt") # TODO: extract model download function only from this
         detector = DetectionModel(cfg=f"yolo_cfg/v{version}/yolov{model_type}.yaml", nc=80, verbose=False)
-        detector.args = Hyperparameters(7.5, 0.5, 1.5)
+        detector.args = YoloHyperparameters(box_gain, cls_gain, dfl_gain)
         detector.eval()
         detector.to(self.device)
 
@@ -205,19 +208,21 @@ class FrequencyExp():
 
 
 
-    def save_filter_model(self, model, epoch, save_freq, total_val_loss):
+    def save_filter_model(self, filter_model, epoch, patience_counter, save_freq, total_val_loss, best_val_loss):
         # save best trained model
-        if total_val_loss < self.best_val_loss:
-            self.best_val_loss = total_val_loss
-            self.patience_counter = 0
-            torch.save(model.state_dict(), Path(self.checkpoints, f'val_best.pth'))
+        if total_val_loss < best_val_loss:
+            best_val_loss = total_val_loss
+            patience_counter = 0
+            torch.save(filter_model.state_dict(), Path(self.checkpoints, f'val_best.pth'))
         else:
-            self.patience_counter += 1
+            patience_counter += 1
 
         # save model frequently
         if save_freq > 0 and epoch % save_freq == 0:
-            self.filter_model.save_filter_img(Path(self.exp_dir, f'filter_epoch{epoch}.png'))
-            torch.save(model.state_dict(), Path(self.checkpoints, 'epoch%d.pth' % (epoch)))
+            filter_model.save_filter_img(Path(self.exp_dir, f'filter_epoch{epoch}.png'))
+            torch.save(filter_model.state_dict(), Path(self.checkpoints, 'epoch%d.pth' % (epoch)))
+
+        return patience_counter, best_val_loss
 
 
     def write_results(self, epoch, train_box_loss: float, train_cls_loss: float, train_dfl_loss: float, 
@@ -233,7 +238,7 @@ class FrequencyExp():
         f.close()
 
 
-    def test_filter_model(self):
+    def test_filter_model(self, filter_model):
         self.logger.info('Generating test outputs...')
 
         images_files = get_filepaths_list(self.input_dir, self.image_extensions)
@@ -242,8 +247,8 @@ class FrequencyExp():
         for pth_file in pth_files:
             self.logger.info(f'Testing with weights file: {pth_file}')
 
-            self.filter_model.load_state_dict(torch.load(pth_file, map_location=self.device))
-            self.filter_model.eval()
+            filter_model.load_state_dict(torch.load(pth_file, map_location=self.device))
+            filter_model.eval()
 
             save_folder = get_last_path_element(pth_file).split('.')[0]
             save_dir = Path(self.exp_dir, save_folder)
@@ -254,7 +259,7 @@ class FrequencyExp():
                 image = image.unsqueeze(0).to(self.device)
                 image_name = get_last_path_element(image_file)
 
-                output = self.filter_model(image)[0]
+                output = filter_model(image)[0]
                 output = resize_auto_interpolation(output, height0, width0)
                 output_normalized = (output - output.min()) / (output.max() - output.min())
                 plt.imsave(Path(save_dir, image_name), output_normalized)

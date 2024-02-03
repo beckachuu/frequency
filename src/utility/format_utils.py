@@ -153,7 +153,7 @@ def str_to_list_num(s: str):
     lists_str = s.split('/')
 
     if len(lists_str) == 1:
-        if lists_str[0].find('.') != -1:
+        if lists_str[0].find('.') != -1 or lists_str[0].find('e') != -1:
             return str_to_list_float(lists_str[0])
         else:
             return str_to_list_int(lists_str[0])
