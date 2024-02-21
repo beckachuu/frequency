@@ -103,7 +103,7 @@ def check_files_exist(file_paths: list) -> bool:
     return True
 
 
-def get_last_path_element(path: str, n = 1) -> list:
+def get_last_path_element(path: str, n = 1):
     elements = os.path.normpath(path).split(os.sep)
     if n == 1:
         return elements[-1]

@@ -144,7 +144,7 @@ class FrequencyExp():
             patience_counter, best_val_loss = self.save_filter_model(filter_model, epoch, patience_counter, save_freq, 
                                    losses["val"]["box"]+losses["val"]["cls"]+losses["val"]["dfl"], best_val_loss)
 
-            if patience_counter > patience:
+            if patience_counter > patience and patience >= 0:
                 print("Early stopping.")
                 break
         
@@ -188,17 +188,19 @@ class FrequencyExp():
 
     def load_detect_model(self, model_type, box_gain, cls_gain, dfl_gain):
         version = model_type[0]
+        if version != "8":
+            self.logger.error("Only YOLOv8 versions can be used for this experiments.")
 
+        # Download model weights
         detector = YOLO(f"yolov{model_type}.pt") # TODO: extract model download function only from this
+
+        # Create model
         detector = DetectionModel(cfg=f"yolo_cfg/v{version}/yolov{model_type}.yaml", nc=80, verbose=False)
         detector.args = YoloHyperparameters(box_gain, cls_gain, dfl_gain)
         detector.eval()
         detector.to(self.device)
 
-        if os.path.exists(f'yolov{model_type}.pt'):
-            detector.load(torch.load(f'yolov{model_type}.pt', map_location=self.device))
-        else:
-            detector.load(torch.load(f'yolov{model_type}u.pt', map_location=self.device))
+        detector.load(torch.load(f'yolov{model_type}.pt', map_location=self.device))
 
         # not training this detect model -> no grads required
         for param in detector.parameters():
@@ -260,8 +262,8 @@ class FrequencyExp():
                 image_name = get_last_path_element(image_file)
 
                 output = filter_model(image)[0]
+                output = torch.clamp(output, 0, 1)
                 output = resize_auto_interpolation(output, height0, width0)
-                output_normalized = (output - output.min()) / (output.max() - output.min())
-                plt.imsave(Path(save_dir, image_name), output_normalized)
+                plt.imsave(Path(save_dir, image_name), output)
 
 

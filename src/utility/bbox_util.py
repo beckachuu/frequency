@@ -99,3 +99,20 @@ def get_yolo_bbox(labels_file, groundtruth, image_id, height0, width0) -> np.nda
         save_yolo_txt_labels(yolo_bboxes, labels_file)
         return np.zeros((0, 5))
 
+
+def scale_bboxes(bboxes: np.ndarray, source_size: tuple, dest_size: tuple):
+    bboxes = np.array(bboxes)
+    if len(bboxes.shape) == 1:
+        bboxes = bboxes[np.newaxis, :]
+
+    height_scale = dest_size[0] / source_size[0]
+    width_scale = dest_size[1] / source_size[1]
+
+    for bbox in bboxes:
+        bbox[0] = bbox[0] * width_scale   # x_min
+        bbox[1] = bbox[1] * height_scale  # y_min
+        bbox[2] = bbox[2] * width_scale   # x_max
+        bbox[3] = bbox[3] * height_scale  # y_max
+
+    return bboxes
+

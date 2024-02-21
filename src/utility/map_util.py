@@ -202,19 +202,6 @@ def get_detect_bbox(detect_path):
     return np.array(detect_data)
 
 
-def scale_bboxes(gt_bboxes: np.ndarray, source_size: tuple, dest_size: tuple):
-    width_scale = dest_size[0] / source_size[0]
-    height_scale = dest_size[1] / source_size[1]
-
-    for gt_bbox in gt_bboxes:
-        gt_bbox[0] = gt_bbox[0] * width_scale   # x_min
-        gt_bbox[1] = gt_bbox[1] * height_scale  # y_min
-        gt_bbox[2] = gt_bbox[2] * width_scale   # x_max
-        gt_bbox[3] = gt_bbox[3] * height_scale  # y_max
-
-    return gt_bboxes
-
-
 
 def calculate_tp_fp_for_class(gt_data: dict, detect_data: dict, iou_threshold: float, class_name: int):
     """

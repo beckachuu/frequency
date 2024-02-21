@@ -40,3 +40,8 @@ class MODEL_TXT:
 
     model_type = "model_type"
     score_threshold = "score_threshold"
+
+
+MODEL_TYPES = ["3",
+               "5n", "5s", "5m", "5l", "5x",
+               "8n", "8s", "8m", "8l", "8x"]

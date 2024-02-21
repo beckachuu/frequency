@@ -38,8 +38,9 @@ def resize_auto_interpolation(image, height=yolov5_input_size, width=yolov5_inpu
 
 def resize_auto_interpolation_same(images, height=yolov5_input_size, width=yolov5_input_size):
     '''
-    @images: all must be in the shape of [height, width, channel]
-    All images will be resized to same size.
+        @images: all must be HWC shape
+        All images will be resized to same size.
+        Return: list of resized images
     '''
     results = []
     for image in images:

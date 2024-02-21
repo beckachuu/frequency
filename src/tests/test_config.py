@@ -24,11 +24,10 @@ def test_config(config, logger):
 
         {
             'name': f'test {MODEL_TXT.model_type}',
-            'result': config.model_type in ["3", "5n", "5s", "5m", "5l", "5x", "6n", "6s", "6m", "6l", "6x",
-                                            "8n", "8s", "8m", "8l", "8x"],
+            'result': config.model_type in MODEL_TYPES,
             'expected': True,
             'error_message': shared_incorrect_para_msg.format(
-                param=MODEL_TXT.model_type) + f' It should be one of these: [yolov5s]'
+                param=MODEL_TXT.model_type) + f' It should be one of these: {MODEL_TYPES}'
         },
         {
             'name': f'test {MODEL_TXT.score_threshold}',
