@@ -94,10 +94,10 @@ def get_yolo_bbox(labels_file, groundtruth, image_id, height0, width0) -> np.nda
     try:
         return verify_yolo_labels(yolo_bboxes)
     except:
-        yolo_bboxes = np.zeros((0, 5))
-        print(f"Error loading labels for: {labels_file}")
-        save_yolo_txt_labels(yolo_bboxes, labels_file)
-        return np.zeros((0, 5))
+        # yolo_bboxes = np.zeros((0, 5))
+        # save_yolo_txt_labels(yolo_bboxes, labels_file)
+        # return np.zeros((0, 5))
+        return None
 
 
 def scale_bboxes(bboxes: np.ndarray, source_size: tuple, dest_size: tuple):

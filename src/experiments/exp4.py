@@ -108,7 +108,7 @@ class FrequencyExp():
                 losses["train"]["box"] = (losses["train"]["box"] * batch_ind + box) / (batch_ind + 1)
                 losses["train"]["cls"] = (losses["train"]["cls"] * batch_ind + cls) / (batch_ind + 1)
                 losses["train"]["dfl"] = (losses["train"]["dfl"] * batch_ind + dfl) / (batch_ind + 1)
-                self.logger.info(f"[Epoch {epoch}][{batch_ind}/{len(train_loader)}]: " + 
+                self.logger.info(f"[Epoch {epoch}][{batch_ind + 1}/{len(train_loader)}]: " + 
                                  f"box_loss = {box:.3f}, cls_loss = {cls:.3f}, dfl_loss = {dfl:.3f}")
             
             self.logger.info(f"[TRAIN LOSS - epoch {epoch}]: box_loss = {losses['train']['box']:.3f}, " +
@@ -145,7 +145,7 @@ class FrequencyExp():
                                    losses["val"]["box"]+losses["val"]["cls"]+losses["val"]["dfl"], best_val_loss)
 
             if patience_counter > patience and patience >= 0:
-                print("Early stopping.")
+                logger.warn("Early stopping.")
                 break
         
         self.test_filter_model(filter_model)
@@ -249,13 +249,19 @@ class FrequencyExp():
         for pth_file in pth_files:
             self.logger.info(f'Testing with weights file: {pth_file}')
 
-            filter_model.load_state_dict(torch.load(pth_file, map_location=self.device))
-            filter_model.eval()
-
             save_folder = get_last_path_element(pth_file).split('.')[0]
             save_dir = Path(self.exp_dir, save_folder)
             create_path_if_not_exists(save_dir)
-        
+
+            if not self.force_exp:
+                existed_count = len(os.listdir(save_dir))
+                if existed_count >= len(images_files):
+                    self.logger.warn(f'[force_exp] is ON. Ignoring this path.')
+                    continue
+
+            filter_model.load_state_dict(torch.load(pth_file, map_location=self.device))
+            filter_model.eval()
+
             for image_file in images_files:
                 image, height0, width0 = preprocess_image_from_url_to_torch_input(image_file)
                 image = image.unsqueeze(0).to(self.device)

@@ -109,6 +109,10 @@ def get_last_path_element(path: str, n = 1):
         return elements[-1]
     return elements[-n:]
 
+def get_last_element_name(path: str):
+    element = get_last_path_element(path)
+    return element.split('.')[0]
+
 
 def get_child_folders(path, level=1, nat_sort=True):
     if level == 1:

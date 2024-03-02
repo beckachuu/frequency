@@ -11,7 +11,7 @@ except ImportError:
 from utility.bbox_util import get_yolo_bbox
 from utility.format_utils import (preprocess_image_from_url_to_255HWC,
                                   preprocess_image_from_url_to_torch_input)
-from utility.path_utils import (get_filepaths_list, get_last_path_element,
+from utility.path_utils import (get_filepaths_list, get_last_path_element, get_last_element_name,
                                 read_dict_from_json)
 
 
@@ -45,9 +45,8 @@ class PathDataset(udata.Dataset):
     def __getitem__(self, index: int):
         return self.filepaths[index]
 
-
 class YoloHyperparameters:
-    def __init__(self, box, cls, dfl):
+    def __init__(self, box=7.5, cls=0.5, dfl=1.5):
         self.box = box # (float) box loss gain
         self.cls = cls # (float) cls loss gain (scale with pixels)
         self.dfl = dfl # (float) dfl loss gain
@@ -56,21 +55,35 @@ class TrainDataset(udata.Dataset):
     def __init__(self, input_dir, img_extensions, split, is_train_set, gt_json_dir, labels_dir):
         super(TrainDataset, self).__init__()
 
-        self.filepaths = get_filepaths_list(input_dir, img_extensions)
-
-        if split >= 0:
-            count = int(split * len(self.filepaths))
-            if is_train_set:
-                self.filepaths = self.filepaths[:count]
-            else:
-                self.filepaths = self.filepaths[-count:]
-
         self.gt_data = read_dict_from_json(gt_json_dir)
         self.labels_dir = labels_dir
 
+        self.image_paths = get_filepaths_list(input_dir, img_extensions)
+        if split >= 0:
+            count = int(split * len(self.image_paths))
+            if is_train_set:
+                self.image_paths = self.image_paths[:count]
+            else:
+                self.image_paths = self.image_paths[-count:]
+
+        self.image_paths = self.filter_empty_label()
+
+    def filter_empty_label(self):
+        filtered_ids = {}
+        for data in self.gt_data["annotations"]:
+            filtered_ids[data["image_id"]] = None
+
+        image_paths = []
+        for path in self.image_paths:
+            image_id = int(get_last_element_name(path))
+            if image_id in filtered_ids:
+                image_paths.append(path)
+
+        return image_paths
+
 
     def __len__(self):
-        return len(self.filepaths)
+        return len(self.image_paths)
 
     
     def get_labels(self, labels: np.ndarray) -> dict:
@@ -87,9 +100,10 @@ class TrainDataset(udata.Dataset):
 
 
     def __getitem__(self, index: int):
-        img, height0, width0 = preprocess_image_from_url_to_torch_input(self.filepaths[index])
+        image_path = self.image_paths[index]
+        img, height0, width0 = preprocess_image_from_url_to_torch_input(image_path)
 
-        image_name = get_last_path_element(self.filepaths[index]).split('.')[0]
+        image_name = get_last_element_name(image_path)
         image_id = int(image_name)
 
         labels_file = Path(self.labels_dir, f'{image_name}.txt')
