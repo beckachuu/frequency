@@ -113,8 +113,8 @@ def smooth_edges(image: np.ndarray, big_img: np.ndarray, hann_mask=None) -> np.n
         else:
             channel_image = image[:, :, channel]
 
-        flip_h = np.flip(channel_image, 1)
-        flip_v = np.flip(channel_image, 0)
+        flip_h = np.flip(channel_image, 0)
+        flip_v = np.flip(channel_image, 1)
         flip_both = np.flip(channel_image, (0, 1))
         # TODO: handle when big_img is not exactly 3 times larger
         if big_img.ndim == 3:

@@ -2,6 +2,8 @@ import os
 import sys
 
 import cv2
+import torch
+
 try:
     import cupy as np
 except ImportError:
@@ -14,14 +16,19 @@ if module_path not in sys.path:
 from const.constants import epsilon, yolov5_input_size
 
 
-def resize_auto_interpolation(image: np.ndarray, height=yolov5_input_size, width=yolov5_input_size):
+def resize_auto_interpolation(image, height=yolov5_input_size, width=yolov5_input_size) -> np.ndarray:
     '''
-    @image: must be in the shape of [height, width, channel]
+        Return: HWC np.ndarray image 
     '''
     height = int(height)
     width = int(width)
 
-    image = to_numpy(image)
+    if isinstance(image, torch.Tensor):
+        image = image.detach().cpu().numpy()
+
+    # If image is CHW, convert to HWC
+    if image.shape[0] < image.shape[1] and image.shape[0] < image.shape[2]:
+        image = image.transpose(1, 2, 0)
 
     if image.shape[0] * image.shape[1] < height * width:
         image = cv2.resize(image, (width, height), interpolation=cv2.INTER_CUBIC)
@@ -31,8 +38,9 @@ def resize_auto_interpolation(image: np.ndarray, height=yolov5_input_size, width
 
 def resize_auto_interpolation_same(images, height=yolov5_input_size, width=yolov5_input_size):
     '''
-    @images: all must be in the shape of [height, width, channel]
-    All images will be resized to same size.
+        @images: all must be HWC shape
+        All images will be resized to same size.
+        Return: list of resized images
     '''
     results = []
     for image in images:
@@ -49,7 +57,7 @@ def crop_center(img, crop_h, crop_w):
         return img[starty:starty+crop_h, startx:startx+crop_w]
 
 
-def preprocess_image_from_url_to_1(img_path, resize_yolo=True):
+def preprocess_image_from_url_to_1HWC(img_path, resize_yolo=True):
     image, height, width = preprocess_image_from_url_to_255HWC(img_path, resize_yolo)
     image = image.astype(np.float32) / 255
     return image, height, width
@@ -65,11 +73,20 @@ def preprocess_image_from_url_to_255HWC(img_path, resize_yolo=True):
         image = resize_auto_interpolation(image)
     return image, height, width
 
-def HWC_to_CHW(image):
+def CHW_to_HWC(image: np.ndarray) -> np.ndarray:
+    return image.transpose((1, 2, 0))
+
+def HWC_to_CHW(image: np.ndarray) -> np.ndarray:
     return image.transpose((2, 0, 1))
 
 def BGR_to_RBG(image):
     return image[..., ::-1]
+
+def preprocess_image_from_url_to_torch_input(img_path, resize_yolo=True):
+    image, height, width = preprocess_image_from_url_to_1HWC(img_path, resize_yolo)
+    image = HWC_to_CHW(image)
+    image = torch.from_numpy(image)
+    return image, height, width
 
 
 def complex_to_polar_real(complex_data):
@@ -108,8 +125,7 @@ def str_to_list_str(s: str) -> list:
     s: string contain multiple elements, separated by comma (may include space)
     '''
     s = s.replace(' ', '')
-    s_list = s.split(',')
-    return s_list
+    return s.split(',')
 
 
 def str_to_list_int(s: str) -> list:
@@ -138,7 +154,7 @@ def str_to_list_num(s: str):
     lists_str = s.split('/')
 
     if len(lists_str) == 1:
-        if lists_str[0].find('.') != -1:
+        if lists_str[0].find('.') != -1 or lists_str[0].find('e') != -1:
             return str_to_list_float(lists_str[0])
         else:
             return str_to_list_int(lists_str[0])

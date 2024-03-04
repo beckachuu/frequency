@@ -2,10 +2,8 @@
 Adapted from https://github.com/Cartucho/mAP
 """
 
-try:
-    import cupy as np
-except ImportError:
-    import numpy as np
+import numpy as np
+import torch
 
 from const.constants import coco_91_classes
 from utility.path_utils import get_filepaths_list, get_last_path_element
@@ -160,19 +158,21 @@ def load_gt_data(groundtruth: dict, image_id: int):
     return gt_data
 
 def get_gt_bbox(groundtruth: dict, image_id: int):
-    gt_data = []
+    '''
+        Return bboxes under this format: [x_min, y_min, x_max, y_max, score, label]
+    '''
+    gt_bbox = []
     
     for gt_dict in groundtruth:
         if gt_dict["image_id"] == image_id:
             bbox = gt_dict["bbox"].copy()
             bbox[2] += bbox[0]
             bbox[3] += bbox[1]
-            gt_data.append(bbox)
-            gt_data[-1].append(1)
-            gt_data[-1].append(int(gt_dict["category_id"]))
+            gt_bbox.append(bbox)
+            gt_bbox[-1].append(1)
+            gt_bbox[-1].append(int(gt_dict["category_id"]))
 
-    return np.array(gt_data)
-
+    return np.array(gt_bbox)
 
 
 def load_detect_data(detect_list):

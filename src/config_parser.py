@@ -15,10 +15,19 @@ from utility.path_utils import create_path_if_not_exists, get_last_path_element
 class config:
     # general
     input_dir = ""
+    
+    train_dir = ""
+    train_split = -1
+    train_annos = ""
+    val_dir = ""
+    val_split = -1
+    val_annos = ""
+    save_labels_dir = ""
+
     image_extensions = []
     batch_size = -1
     plot_count = -1
-    groundtruth_json = ""
+    input_annos = ""
     quiet = False
     device = None
 
@@ -52,18 +61,33 @@ def analyze_config(config_path):
 
     # general
     config.input_dir = config_parser[GENERAL_TXT.GENERAL][GENERAL_TXT.input_dir]
-    config.image_extensions = str_to_list_str(config_parser[GENERAL_TXT.GENERAL][GENERAL_TXT.image_extensions])
+
     config.batch_size = int(config_parser[GENERAL_TXT.GENERAL][GENERAL_TXT.batch_size])
+    config.input_annos = config_parser[GENERAL_TXT.GENERAL][GENERAL_TXT.input_annos]
+
+    config.train_dir = config_parser[GENERAL_TXT.GENERAL][GENERAL_TXT.train_dir]
+    train_split = config_parser[GENERAL_TXT.GENERAL][GENERAL_TXT.train_split]
+    if train_split != '':
+        config.train_split = float(train_split)
+    config.train_annos = config_parser[GENERAL_TXT.GENERAL][GENERAL_TXT.train_annos]
+
+    config.val_dir = config_parser[GENERAL_TXT.GENERAL][GENERAL_TXT.val_dir]
+    val_split = config_parser[GENERAL_TXT.GENERAL][GENERAL_TXT.val_split]
+    if val_split != '':
+        config.val_split = float(val_split)
+    config.val_annos = config_parser[GENERAL_TXT.GENERAL][GENERAL_TXT.val_annos]
+
+    config.save_labels_dir = config_parser[GENERAL_TXT.GENERAL][GENERAL_TXT.save_labels_dir]
+
+    config.image_extensions = str_to_list_str(config_parser[GENERAL_TXT.GENERAL][GENERAL_TXT.image_extensions])
     config.plot_count = int(config_parser[GENERAL_TXT.GENERAL][GENERAL_TXT.plot_count])
-    config.groundtruth_json = config_parser[GENERAL_TXT.GENERAL][GENERAL_TXT.groundtruth_json]
     config.quiet = bool(config_parser[GENERAL_TXT.GENERAL][GENERAL_TXT.quiet])
-    # config.groundtruth_data = read_dict_from_json(config.groundtruth_json)
     config.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # analyze frequency
     config.r_values = str_to_list_num(config_parser[ANALYZE_FREQ.ANALYZE_FREQ][ANALYZE_FREQ.r_values])
 
-    # analyze frequency
+    # experiments
     config.exp_number = int(config_parser[EXPERIMENTS.EXPERIMENTS][EXPERIMENTS.exp_number])
     exp_i = 0
     while True:

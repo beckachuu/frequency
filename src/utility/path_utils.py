@@ -4,6 +4,8 @@ import os
 import sys
 from datetime import datetime
 
+from natsort import natsorted, ns
+
 
 def get_project_root():
     return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -82,6 +84,10 @@ def get_filepaths_list(folder_path: str, extensions: list) -> list:
 
 
 def count_filepaths(folder_path: str, extensions: list = None) -> int:
+    if not os.path.exists(folder_path):
+        print(f"Error: Folder {folder_path} does not exist.")
+        return 0
+
     if not extensions:
         return len([name for name in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, name))])
     else:
@@ -97,30 +103,40 @@ def check_files_exist(file_paths: list) -> bool:
     return True
 
 
-def get_last_path_element(path: str, n = 1) -> list:
+def get_last_path_element(path: str, n = 1):
     elements = os.path.normpath(path).split(os.sep)
     if n == 1:
         return elements[-1]
     return elements[-n:]
 
+def get_last_element_name(path: str):
+    element = get_last_path_element(path)
+    return element.split('.')[0]
 
-def get_child_folders(path, level=1):
+
+def get_child_folders(path, level=1, nat_sort=True):
     if level == 1:
-        return [os.path.join(path, name) for name in os.listdir(path) if os.path.isdir(os.path.join(path, name))]
+        folders = [os.path.join(path, name) for name in os.listdir(path) if os.path.isdir(os.path.join(path, name))]
     else:
         folders = []
         for name in os.listdir(path):
             if os.path.isdir(os.path.join(path, name)):
-                folders.extend(get_child_folders(os.path.join(path, name), level - 1))
-        return folders
+                folders.extend(get_child_folders(os.path.join(path, name), level - 1, False))
 
-def get_exp_folders(exp_dir) -> list:
+    if nat_sort:
+        folders = natsorted(folders, alg=ns.IGNORECASE)
+    
+    return folders
+
+def get_exp_folders(exp_dir, exclude=["checkpoints"]) -> list:
     '''
         Get result folders of an exp directory
         Return 1st level child folders (or parent folder if no child found)
     '''
     exp_folders = get_child_folders(exp_dir, 1)
+    exp_folders = list(filter(lambda folder: not any(word in folder for word in exclude), exp_folders))
     if len(exp_folders) == 0:
         exp_folders = [exp_dir]
 
     return exp_folders
+

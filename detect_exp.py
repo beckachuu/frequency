@@ -3,7 +3,6 @@ import sys
 from logging import Logger
 from pathlib import Path
 
-import torch
 from torch.utils.data import DataLoader
 from ultralytics import YOLO
 from yolov5.utils.general import coco80_to_coco91_class
@@ -19,9 +18,8 @@ from utility.path_utils import (count_filepaths, create_path_if_not_exists,
                                 get_exp_folders, get_last_path_element)
 
 
-def load_model():
-    detector = torch.hub.load('ultralytics/yolov5', 'yolov5s')
-    # yolov8 = YOLO('yolov8n.pt', map_location=config.device)
+def load_model(model_type):
+    detector = YOLO(f"yolov{model_type}.pt")
 
     detector.iou = 0
     detector.conf = config.score_threshold
@@ -30,21 +28,23 @@ def load_model():
 
 
 def save_results(detector, coco_91, filepaths, save_dir):
-    detect_results = detector(filepaths)
+    results = detector(filepaths)
 
     # Save bounding boxes
-    for i, xyxy in enumerate(detect_results.xyxy):
-        xyxy = xyxy.numpy()
+    for i, result in enumerate(results):
         filename = get_last_path_element(filepaths[i]).split('.')[0]
+        bboxes = result.boxes
 
         with open(Path(save_dir) / f"{filename}.txt", "w+") as f:
-            for box in xyxy:
-                box[5] = coco_91[int(box[5])] # Map COCO 80 classes to COCO 90 classes
-                f.write(' '.join(map(str, box)) + '\n')
+            for box in bboxes:
+                xyxy = box.xyxy[0]
+                conf = float(box.conf)
+                cls = coco_91[int(box.cls)] # Map COCO 80 classes to COCO 90 classes
+                f.write(f"{float(xyxy[0])} {float(xyxy[1])} {float(xyxy[2])} {float(xyxy[3])} {conf} {cls}\n")
 
 
 
-def detect(logger: Logger, detector, classes, input_path, output_path=None):
+def detect(logger: Logger, detector, coco_91, input_path, output_path=None):
     if not output_path:
         output_path = input_path
     detect_dir = Path(output_path) / 'detects'
@@ -59,17 +59,15 @@ def detect(logger: Logger, detector, classes, input_path, output_path=None):
         logger.info(f"Skipping {input_path}: force_detect option is False and this path got enough detect result files")
         return
     
-    create_path_if_not_exists(detect_dir)
-
-    logger.info(f"Detecting: {input_path}")
     try:
         dataloader = DataLoader(dataset=dataset, batch_size=config.batch_size)
     except ValueError:
-        logger.error(f'Input path "{input_path}" does not contain any image with allowed extension.')
-        return
+        logger.warn(f'Input path "{input_path}" does not contain any image with allowed extension.')
 
+    logger.info(f"Detecting: {input_path}")
+    create_path_if_not_exists(detect_dir)
     for i, images_paths in enumerate(dataloader):
-        save_results(detector, classes, images_paths, detect_dir)
+        save_results(detector, coco_91, images_paths, detect_dir)
 
 
 
@@ -77,16 +75,11 @@ if __name__ == "__main__":
     analyze_config(os.path.abspath('./config.ini'))
     logger = MyLogger.getLog(config.quiet)
     
-    detector = load_model()
+    detector = load_model(config.model_type)
     coco_91 = coco80_to_coco91_class()
 
     # detect input images
     detect(logger, detector, coco_91, config.input_dir, config.output_dir)
-
-    # detect analyze low frequency images
-    # for r in config.r_values:
-    #     low_dir = get_r_low_dir(r)
-    #     detect(logger, detector, coco_91, low_dir)
 
     # detect experiments images
     exp_folders = get_exp_folders(config.exp_dir)
