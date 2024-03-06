@@ -43,6 +43,7 @@ class config:
 
     # model
     model_type = ""
+    model_weights = ""
     score_threshold = []
 
     # output
@@ -107,6 +108,7 @@ def analyze_config(config_path):
 
     # model
     config.model_type = config_parser[MODEL_TXT.MODEL][MODEL_TXT.model_type]
+    config.model_weights = config_parser[MODEL_TXT.MODEL][MODEL_TXT.model_weights]
     config.score_threshold = float(config_parser[MODEL_TXT.MODEL][MODEL_TXT.score_threshold])
 
 

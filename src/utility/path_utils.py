@@ -79,7 +79,7 @@ def get_filepaths_list(folder_path: str, extensions: list) -> list:
     filepaths = []
     for ext in extensions:
         filepaths += glob.glob(os.path.join(folder_path, f"*.{ext}"))
-    filepaths.sort()
+    filepaths = natsorted(filepaths, alg=ns.IGNORECASE)
     return filepaths
 
 

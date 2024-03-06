@@ -29,7 +29,7 @@ def run_exp(logger):
     if config.exp_number == 4:
         frequency_exp.run_experiment(config.train_dir, config.train_split, config.train_annos,
                                      config.val_dir, config.val_split, config.val_annos,
-                                     config.save_labels_dir, config.model_type)
+                                     config.save_labels_dir, config.model_type, config.model_weights)
     else:
         frequency_exp.run_experiment()
 

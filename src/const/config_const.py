@@ -39,6 +39,7 @@ class MODEL_TXT:
     MODEL = "MODEL"
 
     model_type = "model_type"
+    model_weights = "model_weights"
     score_threshold = "score_threshold"
 
 

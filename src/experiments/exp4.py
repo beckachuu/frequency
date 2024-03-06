@@ -43,7 +43,7 @@ class FrequencyExp():
 
 
     def run_experiment(self, train_dir, train_split, train_annos, val_dir, val_split, val_annos,
-                       save_labels_dir, detect_model_type):
+                       save_labels_dir, detect_model_type, detect_model_weights):
 
         # Exp values
         epochs = int(self.exp_values[0])
@@ -71,7 +71,7 @@ class FrequencyExp():
 
         # Load models
         filter_model = self.load_filter_model(initial_epoch, filter_size)
-        detect_model = self.load_detect_model(detect_model_type, box_gain, cls_gain, dfl_gain)
+        detect_model = self.load_detect_model(detect_model_type, detect_model_weights, box_gain, cls_gain, dfl_gain)
 
         # Loss
         criterion = v8DetectionLoss(detect_model)
@@ -169,10 +169,10 @@ class FrequencyExp():
         create_path_if_not_exists(save_labels_dir)
 
         train_dataset = TrainDataset(train_dir, image_extensions, train_split, True, train_annos, save_labels_dir)
-        self.logger.info(f'Loaded train data from: {train_dir}. Images count: {len(train_dataset)}')
+        self.logger.debug(f'Loaded train data from: {train_dir}. Images count: {len(train_dataset)}')
         train_loader = DataLoader(dataset=train_dataset, num_workers=2, batch_size=batch_size, shuffle=True, collate_fn=TrainDataset.collate_fn)
         val_dataset = TrainDataset(val_dir, image_extensions, val_split, False, val_annos, save_labels_dir)
-        self.logger.info(f'Loaded validation data from: {val_dir}. Images count: {len(val_dataset)}')
+        self.logger.debug(f'Loaded validation data from: {val_dir}. Images count: {len(val_dataset)}')
         val_loader = DataLoader(dataset=val_dataset, num_workers=2, batch_size=batch_size, shuffle=True, collate_fn=TrainDataset.collate_fn)
         return train_loader, val_loader
     
@@ -182,17 +182,16 @@ class FrequencyExp():
         filter_model.to(self.device)
         
         if initial_epoch > 0:
-            self.logger.info(f"Resuming by loading epoch {initial_epoch}")
+            self.logger.info(f"Filter model checkpoints found! Starting from epoch {initial_epoch + 1}.")
             filter_model.load_state_dict(torch.load(Path(self.checkpoints, f"epoch{initial_epoch}.pth"), map_location=self.device))
+        else:
+            self.logger.info(f"Filter model checkpoints NOT found. Starting from epoch {initial_epoch + 1}.")
         return filter_model
 
-    def load_detect_model(self, model_type, box_gain, cls_gain, dfl_gain):
+    def load_detect_model(self, model_type, model_weights, box_gain, cls_gain, dfl_gain):
         version = model_type[0]
         if version != "8":
             self.logger.error("Only YOLOv8 versions can be used for this experiments.")
-
-        # Download model weights
-        detector = YOLO(f"yolov{model_type}.pt") # TODO: extract model download function only from this
 
         # Create model
         detector = DetectionModel(cfg=f"yolo_cfg/v{version}/yolov{model_type}.yaml", nc=80, verbose=False)
@@ -200,7 +199,14 @@ class FrequencyExp():
         detector.eval()
         detector.to(self.device)
 
-        detector.load(torch.load(f'yolov{model_type}.pt', map_location=self.device))
+        if model_weights == "":
+            # Download ultralytics pretrained model weights
+            self.logger.info(f"No model weights found. Downloading pretrained YOLOv{model_type} from ultralytics...")
+            YOLO(f"yolov{model_type}.pt") # TODO: extract model download function only from this
+            detector.load(torch.load(f'yolov{model_type}.pt', map_location=self.device))
+        else:
+            self.logger.info(f"YOLOv{model_type} weights found! Loading from {model_weights}")
+            detector.load_state_dict(torch.load(model_weights, map_location=self.device))
 
         # not training this detect model -> no grads required
         for param in detector.parameters():
