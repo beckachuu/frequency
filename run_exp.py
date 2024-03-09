@@ -26,7 +26,7 @@ def run_exp(logger):
 
     logger.info(f'[EXP {config.exp_number}]: force_exp = {config.force_exp}, plot_analyze = {config.plot_analyze}')
 
-    if config.exp_number == 4:
+    if config.exp_number >= 4:
         frequency_exp.run_experiment(config.train_dir, config.train_split, config.train_annos,
                                      config.val_dir, config.val_split, config.val_annos,
                                      config.save_labels_dir, config.model_type, config.model_weights)

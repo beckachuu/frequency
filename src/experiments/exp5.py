@@ -9,12 +9,11 @@ from matplotlib import pyplot as plt
 from torch.cuda.amp import GradScaler
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader
-from ultralytics import YOLO
-from ultralytics.nn.tasks import DetectionModel
 from ultralytics.utils.loss import v8DetectionLoss
 
 from dataset import YoloHyperparameters, TrainDataset
 from model.freq_filter import FrequencyDomainFilter
+from model.custom_yolo import CustomYOLO
 from utility.format_utils import (preprocess_image_from_url_to_torch_input,
                                   resize_auto_interpolation)
 from utility.path_utils import (create_path_if_not_exists, get_filepaths_list,
@@ -71,7 +70,7 @@ class FrequencyExp():
 
         # Load models
         filter_model = self.load_filter_model(initial_epoch, filter_size)
-        detect_model = self.load_detect_model(detect_model_type, detect_model_weights, box_gain, cls_gain, dfl_gain)
+        detect_model = self.load_detect_model(detect_model_type, detect_model_weights, box_gain, cls_gain, dfl_gain, epochs)
 
         # Loss
         criterion = v8DetectionLoss(detect_model)
@@ -169,10 +168,10 @@ class FrequencyExp():
         create_path_if_not_exists(save_labels_dir)
 
         train_dataset = TrainDataset(train_dir, image_extensions, train_split, True, train_annos, save_labels_dir)
-        self.logger.debug(f'Loaded train data from: {train_dir}. Images count: {len(train_dataset)}')
+        self.logger.info(f'Loaded train data from: {train_dir}. Images count: {len(train_dataset)}')
         train_loader = DataLoader(dataset=train_dataset, num_workers=2, batch_size=batch_size, shuffle=True, collate_fn=TrainDataset.collate_fn)
         val_dataset = TrainDataset(val_dir, image_extensions, val_split, False, val_annos, save_labels_dir)
-        self.logger.debug(f'Loaded validation data from: {val_dir}. Images count: {len(val_dataset)}')
+        self.logger.info(f'Loaded validation data from: {val_dir}. Images count: {len(val_dataset)}')
         val_loader = DataLoader(dataset=val_dataset, num_workers=2, batch_size=batch_size, shuffle=True, collate_fn=TrainDataset.collate_fn)
         return train_loader, val_loader
     
@@ -182,31 +181,23 @@ class FrequencyExp():
         filter_model.to(self.device)
         
         if initial_epoch > 0:
-            self.logger.info(f"Filter model checkpoints found! Starting from epoch {initial_epoch + 1}.")
+            self.logger.info(f"Resuming by loading epoch {initial_epoch}")
             filter_model.load_state_dict(torch.load(Path(self.checkpoints, f"epoch{initial_epoch}.pth"), map_location=self.device))
-        else:
-            self.logger.info(f"Filter model checkpoints NOT found. Starting from epoch {initial_epoch + 1}.")
         return filter_model
 
-    def load_detect_model(self, model_type, model_weights, box_gain, cls_gain, dfl_gain):
+    def load_detect_model(self, model_type, model_weights, box_gain, cls_gain, dfl_gain, epochs):
         version = model_type[0]
         if version != "8":
             self.logger.error("Only YOLOv8 versions can be used for this experiments.")
 
         # Create model
-        detector = DetectionModel(cfg=f"yolo_cfg/v{version}/yolov{model_type}.yaml", nc=80, verbose=False)
+        detector = CustomYOLO(cfg=f"yolo_cfg/v{version}/yolov{model_type}_custom.yaml", epochs=epochs, nc=80, verbose=False)
         detector.args = YoloHyperparameters(box_gain, cls_gain, dfl_gain)
         detector.eval()
         detector.to(self.device)
 
-        if model_weights == "":
-            # Download ultralytics pretrained model weights
-            self.logger.info(f"No model weights found. Downloading pretrained YOLOv{model_type} from ultralytics...")
-            YOLO(f"yolov{model_type}.pt") # TODO: extract model download function only from this
-            detector.load(torch.load(f'yolov{model_type}.pt', map_location=self.device))
-        else:
-            self.logger.info(f"YOLOv{model_type} weights found! Loading from {model_weights}")
-            detector.load_state_dict(torch.load(model_weights, map_location=self.device))
+        if model_weights != "":
+            detector.load(torch.load(model_weights, map_location=self.device))
 
         # not training this detect model -> no grads required
         for param in detector.parameters():
@@ -267,6 +258,10 @@ class FrequencyExp():
 
             filter_model.load_state_dict(torch.load(pth_file, map_location=self.device))
             filter_model.eval()
+
+
+            # epoch = get_last_path_element(pth_file).split('.')[0]
+            # filter_model.save_filter_img(Path(self.exp_dir, f'filter_{epoch}.png'))
 
             for image_file in images_files:
                 image, height0, width0 = preprocess_image_from_url_to_torch_input(image_file)
