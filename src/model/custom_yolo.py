@@ -41,15 +41,15 @@ def parse_model(d, epochs, ch, verbose=True):  # model_dict, input_channels(3)
         LOGGER.info(f"\n{'':>3}{'from':>20}{'n':>3}{'params':>10}  {'module':<45}{'arguments':<30}")
     ch = [ch]
     layers, save, c2 = [], [], ch[-1]  # layers, savelist, ch out
-    for i, (from_num, repeats, module, args) in enumerate(d["backbone"] + d["head"]):  # from, number, module, args
-        module = getattr(torch.nn, module[3:]) if "nn." in module else globals()[module]  # get module
+    for i, (from_num, repeats, m, args) in enumerate(d["backbone"] + d["head"]):  # from, number, module, args
+        m = getattr(torch.nn, m[3:]) if "nn." in m else globals()[m]  # get module
         for j, a in enumerate(args):
             if isinstance(a, str):
                 with contextlib.suppress(ValueError):
                     args[j] = locals()[a] if a in locals() else ast.literal_eval(a)
 
         repeats = n_ = max(round(repeats * depth), 1) if repeats > 1 else repeats  # depth gain
-        if module in (
+        if m in (
             Conv,
             ConvTranspose,
             Bottleneck,
@@ -58,31 +58,34 @@ def parse_model(d, epochs, ch, verbose=True):  # model_dict, input_channels(3)
             C1, C2, C2f, C3, C3TR,
             nn.ConvTranspose2d,
             C3x,
-            FPCM,
         ):
             c1, c2 = ch[from_num], args[0]
             if c2 != nc:  # if c2 not equal to number of classes (i.e. for Classify() output)
                 c2 = make_divisible(min(c2, max_channels) * width, 8)
 
             args = [c1, c2, *args[1:]]
-            if module in (BottleneckCSP, C1, C2, C2f, C3, C3TR, C3x):
+            if m in (BottleneckCSP, C1, C2, C2f, C3, C3TR, C3x):
                 args.insert(2, repeats)  # number of repeats
                 repeats = 1
-            elif module is nn.BatchNorm2d:
-                args = [ch[from_num]]
-            elif module is Concat:
-                c2 = sum(ch[x] for x in from_num)
-            elif module is FPCM:
-                args = [ch[from_num], epochs]
-            else:
-                c2 = ch[from_num]
 
-        m_ = nn.Sequential(*(module(*args) for _ in range(repeats))) if repeats > 1 else module(*args)  # module
-        t = str(module)[8:-2].replace("__main__.", "")  # module type
-        module.np = sum(x.numel() for x in m_.parameters())  # number params
+        elif m is nn.BatchNorm2d:
+            args = [ch[from_num]]
+        elif m is Concat:
+            c2 = sum(ch[x] for x in from_num)
+        elif m is Detect:
+            args.append([ch[x] for x in from_num])
+        elif m is FPCM:
+            c2 = ch[from_num]
+            args = [c2, epochs]
+        else:
+            c2 = ch[from_num]
+
+        m_ = nn.Sequential(*(m(*args) for _ in range(repeats))) if repeats > 1 else m(*args)  # module
+        t = str(m)[8:-2].replace("__main__.", "")  # module type
+        m.np = sum(x.numel() for x in m_.parameters())  # number params
         m_.i, m_.f, m_.type = i, from_num, t  # attach index, 'from' index, type
         if verbose:
-            LOGGER.info(f"{i:>3}{str(from_num):>20}{n_:>3}{module.np:10.0f}  {t:<45}{str(args):<30}")  # print
+            LOGGER.info(f"{i:>3}{str(from_num):>20}{n_:>3}{m.np:10.0f}  {t:<45}{str(args):<30}")  # print
         save.extend(x % i for x in ([from_num] if isinstance(from_num, int) else from_num) if x != -1)  # append to savelist
         layers.append(m_)
         if i == 0:
@@ -148,7 +151,7 @@ class CustomYOLO(BaseModel):
 
         # Build strides
         m = self.model[-1]  # Detect()
-        if isinstance(m, (Detect,)):
+        if isinstance(m, Detect):
             s = 256  # 2x min stride
             m.inplace = self.inplace
             forward = lambda x: self.forward(x)
