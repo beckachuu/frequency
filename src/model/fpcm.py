@@ -3,14 +3,22 @@ import torch.nn as nn
 import torch.fft
 
 class FPCM(nn.Module):
-    def __init__(self, dim, epoch_lim=40):
+    def __init__(self, dim, batches, epoch_lim=40):
         super().__init__()
-        self.projection = nn.Conv1d(dim, dim, kernel_size=1, groups=dim)     
+        self.projection = nn.Conv1d(dim, dim, kernel_size=1, groups=dim)
+
+        self.batches = batches
+        self.batch = 0
+
         self.epoch_lim = epoch_lim
-        self.epoch = 0
+        self.epoch = 1
 
     def forward(self, x):
-        self.epoch += 1
+        if self.training:
+            self.batch += 1;
+            if self.batch > self.batches:
+                self.batch = 0
+                self.epoch += 1
 
         b, c, h, w = x.shape
         x = x.view(b, c, h*w)

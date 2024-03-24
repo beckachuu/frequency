@@ -14,10 +14,11 @@ from ultralytics.utils.loss import v8DetectionLoss
 from ultralytics.utils.torch_utils import (initialize_weights, make_divisible,
                                            scale_img)
 
+from dataset import YoloHyperparameters
 from model.fpcm import FPCM
 
 
-def parse_model(d, epochs, ch, verbose=True):  # model_dict, input_channels(3)
+def parse_model(d, batches, epochs, ch, verbose=True):  # model_dict, input_channels(3)
     """Parse a YOLO model.yaml dictionary into a PyTorch model."""
     import ast
 
@@ -76,7 +77,7 @@ def parse_model(d, epochs, ch, verbose=True):  # model_dict, input_channels(3)
             args.append([ch[x] for x in from_num])
         elif m is FPCM:
             c2 = ch[from_num]
-            args = [c2, epochs]
+            args = [c2, batches, epochs]
         else:
             c2 = ch[from_num]
 
@@ -135,7 +136,7 @@ def yaml_model_load(path):
 class CustomYOLO(BaseModel):
     """YOLOv8 detection model."""
 
-    def __init__(self, cfg="yolov8n.yaml", epochs=40, ch=3, nc=None, verbose=True):  # model, input channels, number of classes
+    def __init__(self, cfg, batches, epochs=40, ch=3, nc=None, verbose=True, box_gain=7.5, cls_gain=0.5, dfl_gain=1.5):  # model, input channels, number of classes
         """Initialize the YOLOv8 detection model with the given config and parameters."""
         super().__init__()
         self.yaml = cfg if isinstance(cfg, dict) else yaml_model_load(cfg)  # cfg dict
@@ -145,7 +146,7 @@ class CustomYOLO(BaseModel):
         if nc and nc != self.yaml["nc"]:
             LOGGER.info(f"Overriding model.yaml nc={self.yaml['nc']} with nc={nc}")
             self.yaml["nc"] = nc  # override YAML value
-        self.model, self.save = parse_model(deepcopy(self.yaml), epochs=epochs, ch=ch, verbose=verbose)  # model, savelist
+        self.model, self.save = parse_model(deepcopy(self.yaml), batches, epochs, ch, verbose)  # model, savelist
         self.names = {i: f"{i}" for i in range(self.yaml["nc"])}  # default names dict
         self.inplace = self.yaml.get("inplace", True)
 
@@ -166,6 +167,9 @@ class CustomYOLO(BaseModel):
         if verbose:
             self.info()
             LOGGER.info("")
+        
+        # Init loss coefficients
+        self.args = YoloHyperparameters(box_gain, cls_gain, dfl_gain)
 
     def _predict_augment(self, x):
         """Perform augmentations on input image x and return augmented inference and train outputs."""
